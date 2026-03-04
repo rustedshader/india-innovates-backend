@@ -356,27 +356,47 @@ def create_default_scraper() -> NewsRSSScraper:
     """Create a scraper pre-loaded with common news RSS feeds."""
     scraper = NewsRSSScraper()
     # World
-    scraper.add_feed("Washington Post", "http://feeds.washingtonpost.com/rss/world")
+    scraper.add_feed("Washington Post", "https://feeds.washingtonpost.com/rss/world")
     scraper.add_feed("BBC", "https://feeds.bbci.co.uk/news/world/rss.xml")
     # India
     scraper.add_feed("NDTV", "https://feeds.feedburner.com/ndtvnews-top-stories")
-    scraper.add_feed("India Today Nation", "https://www.indiatoday.in/rss/1206514")
-    scraper.add_feed("India Today Economy", "https://www.indiatoday.in/rss/1206513")
-    scraper.add_feed("India Today World", "https://www.indiatoday.in/rss/1206577")
+    # India Today Nation
+    scraper.add_feed("India Today", "https://www.indiatoday.in/rss/1206514")
+    # India Today Economy
+    scraper.add_feed("India Today", "https://www.indiatoday.in/rss/1206513")
+    # Inndia Today World
+    scraper.add_feed("India Today", "https://www.indiatoday.in/rss/1206577")
+
+    # The Hindu
     scraper.add_feed("The Hindu", "https://www.thehindu.com/news/feeder/default.rss")
-    scraper.add_feed("The Hindu World", "https://www.thehindu.com/news/international/feeder/default.rss")
-    scraper.add_feed("The Hindu States", "https://www.thehindu.com/news/states/feeder/default.rss")
-    scraper.add_feed("The Hindu Cities", "https://www.thehindu.com/news/cities/feeder/default.rss")
-    scraper.add_feed("The Hindu Economy", "https://www.thehindu.com/business/Economy/feeder/default.rss")
-    scraper.add_feed("The Hindu Markets", "https://www.thehindu.com/business/markets/feeder/default.rss")
-    scraper.add_feed("The Hindu Budget", "https://www.thehindu.com/business/budget/feeder/default.rss")
+    # The Hindu World
+    scraper.add_feed("The Hindu", "https://www.thehindu.com/news/international/feeder/default.rss")
+    # The Hindu States
+    scraper.add_feed("The Hindu", "https://www.thehindu.com/news/states/feeder/default.rss")
+    # The Hindu Cities
+    scraper.add_feed("The Hindu", "https://www.thehindu.com/news/cities/feeder/default.rss")
+    # The Hindu Economy
+    scraper.add_feed("The Hindu", "https://www.thehindu.com/business/Economy/feeder/default.rss")
+    # The Hindu Markets
+    scraper.add_feed("The Hindu", "https://www.thehindu.com/business/markets/feeder/default.rss")
+    # The Hindu Budget
+    scraper.add_feed("The Hindu", "https://www.thehindu.com/business/budget/feeder/default.rss")
+
+    # Live Mint
     scraper.add_feed("Live Mint", "https://www.livemint.com/rss/news")
-    scraper.add_feed("Live Mint Companies", "https://www.livemint.com/rss/companies")
-    scraper.add_feed("Live Mint Money", "https://www.livemint.com/rss/money")
-    scraper.add_feed("Live Mint Politics", "https://www.livemint.com/rss/politics")
-    scraper.add_feed("Live Mint AI", "https://www.livemint.com/rss/AI")
+    # Live Mint Companies
+    scraper.add_feed("Live Mint", "https://www.livemint.com/rss/companies")
+    # Live Mint Money
+    scraper.add_feed("Live Mint", "https://www.livemint.com/rss/money")
+    # Live Mint Politics
+    scraper.add_feed("Live Mint", "https://www.livemint.com/rss/politics")
+    # Live Mint AI
+    scraper.add_feed("Live Mint", "https://www.livemint.com/rss/AI")
+
+    # Economic Times
     scraper.add_feed("Economic Times", "https://b2b.economictimes.indiatimes.com/rss/recentstories")
-    scraper.add_feed("Economic Times Defence", "https://b2b.economictimes.indiatimes.com/rss/defence")
+    # Economic Times Defence
+    scraper.add_feed("Economic Times", "https://b2b.economictimes.indiatimes.com/rss/defence")
 
     return scraper
 

@@ -13,7 +13,10 @@ Architecture:
  [cypher]  [answer]
     │
     ▼
- Neo4j query
+ Generate 1..N Cypher queries (LLM decomposes complex questions)
+    │
+    ▼
+ Execute all queries against Neo4j, combine results
     │
     ▼
  [synthesize]  ──▶  Final answer with citations
@@ -22,8 +25,11 @@ Architecture:
 from __future__ import annotations
 
 import logging
-import re
 from typing import Annotated, Literal, TypedDict
+
+from pydantic import BaseModel, Field
+
+from langchain_core.output_parsers import JsonOutputParser
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
@@ -111,16 +117,57 @@ Query patterns for common question types:
    LIMIT 25
 
 Rules:
-- Return ONLY a valid Cypher READ query (no mutations).
+- Return ONLY valid Cypher READ queries (no mutations).
 - Use case-insensitive matching with toLower() or CONTAINS for entity names.
 - ALWAYS use :RELATES_TO with r.type for relationship filtering. Never use dynamic edge labels.
 - For general "tell me about" questions, use pattern #1 to return full neighborhood.
 - Always include source articles (via :EVIDENCES) when possible — users want provenance.
 - Limit results to 25 rows unless the user asks for more.
 - Always alias return columns clearly.
-- If the question cannot be answered with a Cypher query, return exactly: NONE
+- If the question cannot be answered with a Cypher query, return an empty list of queries.
 - Do NOT wrap the query in markdown code fences.
+
+Search term rules (CRITICAL):
+- Use INDIVIDUAL KEYWORDS in CONTAINS, not compound phrases.
+  GOOD: toLower(e.name) CONTAINS toLower("iran")
+  BAD:  toLower(e.name) CONTAINS toLower("iran war")
+  GOOD: toLower(e.name) CONTAINS toLower("oil")
+  BAD:  toLower(e.name) CONTAINS toLower("oil price")
+- Entity names in the graph are short labels like "Iran", "United States", "OPEC", "Crude Oil".
+  They do NOT contain full phrases like "iran war" or "oil price impact".
+- When a user says "iran war impact on oil prices", search for "iran" and "oil" separately.
+- If needed, combine conditions with OR to catch variations (e.g. "oil" OR "crude" OR "petroleum").
+
+Multiple queries:
+- You SHOULD generate multiple Cypher queries when the question involves ANY of:
+  1. Causal or impact questions (e.g. "X impact on Y") — query X and Y separately
+  2. Multiple distinct entities or topics (e.g. "iran" + "oil")
+  3. Comparing or contrasting entities (e.g. "A vs B")
+  4. Questions that span different node types (entities + events + articles)
+  5. Broad questions where a single query is unlikely to capture all relevant data
+- For simple, focused questions (single entity lookup), a single query is fine.
+- Each query should be self-contained and independently executable.
+- IMPORTANT: cast a wide net. It is MUCH better to return multiple queries that
+  cover different angles than a single narrow query that misses relevant data.
+- If the question cannot be answered with a Cypher query, return an empty list of queries.
 """
+
+
+# ---------------------------------------------------------------------------
+# Structured output models for Cypher generation
+# ---------------------------------------------------------------------------
+
+class CypherQuery(BaseModel):
+    """A single Cypher query with its purpose."""
+    purpose: str = Field(description="Brief description of what this query retrieves (e.g. 'Iran war events', 'oil-related entities')")
+    cypher: str = Field(description="A valid Cypher READ query. Do NOT wrap in code fences.")
+
+
+class CypherQueryPlan(BaseModel):
+    """One or more Cypher queries to answer the user's question."""
+    queries: list[CypherQuery] = Field(
+        description="List of Cypher queries to execute. Use multiple queries for complex questions. Empty list if no query can answer the question."
+    )
 
 SYNTHESIZE_SYSTEM = """You are a geopolitical intelligence analyst. Given a user's question and data retrieved from a knowledge graph, provide a clear, concise answer.
 
@@ -155,8 +202,9 @@ class ChatState(TypedDict):
     messages: list                  # conversation history (HumanMessage / AIMessage)
     question: str                   # current user question
     route: str                      # "graph" or "direct"
-    cypher: str                     # generated Cypher query
-    graph_context: str              # raw results from Neo4j
+    cypher_queries: list[str]       # one or more generated Cypher queries
+    graph_results: list[str]        # formatted results per query
+    graph_context: str              # combined context string for synthesis
     answer: str                     # final answer to return
 
 
@@ -170,6 +218,12 @@ class GraphChatAgent:
     def __init__(self, model: str = "openai/gpt-oss-20b"):
         self.llm = ChatGroq(model_name=model, temperature=0, max_tokens=2048)
         self.driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
+
+        # Cypher generation: LLM -> JSON parser
+        self.cypher_parser = JsonOutputParser(pydantic_object=CypherQueryPlan)
+        self.cypher_llm = ChatGroq(model_name=model, temperature=0, max_tokens=4096)
+        self.cypher_system = CYPHER_SYSTEM + "\n" + self.cypher_parser.get_format_instructions()
+
         self.graph = self._build_graph()
 
     def close(self):
@@ -193,70 +247,88 @@ class GraphChatAgent:
         return state
 
     def _generate_cypher_node(self, state: ChatState) -> ChatState:
-        """Generate a Cypher query from the user question."""
-        # Include recent conversation for context
+        """Generate one or more Cypher queries from the user question."""
+        # Build input with conversation context
         history = _format_history(state["messages"][-6:])  # last 3 turns
-        messages = [
-            SystemMessage(content=CYPHER_SYSTEM),
-        ]
         if history:
-            messages.append(HumanMessage(content=f"Conversation so far:\n{history}\n\nNew question: {state['question']}"))
+            user_input = f"Conversation so far:\n{history}\n\nNew question: {state['question']}"
         else:
-            messages.append(HumanMessage(content=state["question"]))
+            user_input = state["question"]
 
-        resp = self.llm.invoke(messages)
-        cypher = resp.content.strip()
+        messages = [
+            SystemMessage(content=self.cypher_system),
+            HumanMessage(content=user_input),
+        ]
 
-        # Strip markdown code fences if LLM wraps them anyway
-        cypher = re.sub(r"^```(?:cypher)?\s*", "", cypher)
-        cypher = re.sub(r"\s*```$", "", cypher)
+        try:
+            resp = self.cypher_llm.invoke(messages)
+            data = self.cypher_parser.parse(resp.content)
+            plan = CypherQueryPlan(**data)
+        except Exception as e:
+            logger.error(f"Cypher generation failed: {e}")
+            state["cypher_queries"] = []
+            state["route"] = "direct"  # fallback to direct answer
+            return state
 
-        state["cypher"] = cypher
-        logger.info(f"Generated Cypher: {cypher}")
+        queries = [q.cypher.strip() for q in plan.queries if q.cypher.strip()]
+
+        state["cypher_queries"] = queries
+        logger.info(f"Generated {len(queries)} Cypher query/queries")
+        for i, q in enumerate(plan.queries):
+            logger.info(f"  Query {i+1} ({q.purpose}): {q.cypher}")
         return state
 
     def _execute_cypher_node(self, state: ChatState) -> ChatState:
-        """Execute Cypher against Neo4j and store results."""
-        cypher = state.get("cypher", "")
+        """Execute all Cypher queries against Neo4j and combine results."""
+        queries = state.get("cypher_queries", [])
 
-        if not cypher or cypher.upper() == "NONE":
+        if not queries:
+            state["graph_results"] = []
             state["graph_context"] = ""
             state["route"] = "direct"  # fallback to direct answer
             return state
 
-        # Safety: reject mutations
-        upper = cypher.upper()
-        if any(kw in upper for kw in ["CREATE", "MERGE", "DELETE", "SET ", "REMOVE ", "DROP "]):
-            state["graph_context"] = "[Query rejected: only read queries are allowed]"
-            return state
+        all_results: list[str] = []
+        all_entity_names: list[str] = []
 
-        try:
-            with self.driver.session() as session:
-                result = session.run(cypher)
-                records = [dict(r) for r in result]
+        with self.driver.session() as session:
+            for i, cypher in enumerate(queries):
+                label = f"Query {i+1}/{len(queries)}"
 
-            if not records:
-                state["graph_context"] = "The query returned no results."
-            else:
-                context = _format_records(records, cypher)
+                # Safety: reject mutations
+                upper = cypher.upper()
+                if any(kw in upper for kw in ["CREATE", "MERGE", "DELETE", "SET ", "REMOVE ", "DROP "]):
+                    all_results.append(f"[{label} rejected: only read queries are allowed]")
+                    continue
 
-                # --- Neighborhood enrichment ---
-                # If result is thin (few rows, few columns, looks like just entity
-                # info), auto-fetch the full neighborhood for richer answers.
-                if _is_thin_result(records):
-                    entity_names = _extract_entity_names(records)
-                    if entity_names:
-                        extra = self._fetch_neighborhood(session, entity_names)
-                        if extra:
-                            context += "\n\n--- Additional context (entity neighborhood) ---\n" + extra
+                try:
+                    result = session.run(cypher)
+                    records = [dict(r) for r in result]
 
-                state["graph_context"] = context
+                    if not records:
+                        all_results.append(f"{label}: No results.")
+                    else:
+                        context = _format_records(records, cypher)
+                        all_results.append(f"{label}:\n{context}")
+                        logger.info(f"{label} returned {len(records)} rows")
 
-            logger.info(f"Cypher returned {len(records)} rows")
-        except Exception as e:
-            logger.error(f"Cypher execution failed: {e}")
-            state["graph_context"] = f"Query failed with error: {e}"
+                        # Collect entity names for neighborhood enrichment
+                        if _is_thin_result(records):
+                            all_entity_names.extend(_extract_entity_names(records))
 
+                except Exception as e:
+                    logger.error(f"{label} failed: {e}")
+                    all_results.append(f"{label} failed with error: {e}")
+
+            # Neighborhood enrichment across all thin results
+            if all_entity_names:
+                unique_names = list(dict.fromkeys(all_entity_names))
+                extra = self._fetch_neighborhood(session, unique_names)
+                if extra:
+                    all_results.append(f"--- Additional context (entity neighborhood) ---\n{extra}")
+
+        state["graph_results"] = all_results
+        state["graph_context"] = "\n\n".join(all_results)
         return state
 
     def _fetch_neighborhood(self, session, entity_names: list[str]) -> str:
@@ -406,7 +478,8 @@ class GraphChatAgent:
             "messages": messages,
             "question": question,
             "route": "",
-            "cypher": "",
+            "cypher_queries": [],
+            "graph_results": [],
             "graph_context": "",
             "answer": "",
         }
@@ -414,7 +487,7 @@ class GraphChatAgent:
         result = self.graph.invoke(state)
         return {
             "answer": result["answer"],
-            "cypher": result.get("cypher") or None,
+            "cypher": result.get("cypher_queries") or None,
             "graph_context": result.get("graph_context") or None,
             "route": result.get("route", ""),
         }

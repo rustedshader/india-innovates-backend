@@ -46,7 +46,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
-    cypher: str | None = None
+    cypher: list[str] | None = None
     route: str = ""
 
 
