@@ -18,7 +18,7 @@ digraph architecture {
     }
 
     // ── Scraper ──
-    scraper [label="Scraper\n(news_rss.py)\nFetch RSS + full text", fillcolor="#E8F5E9", color="#2E7D32"];
+    scraper [label="Scraper\n(news_rss.py)\n━━━━━━━━━━━━━━━━━\nFetch RSS + full text\nTitle-based dedup\nmax_per_feed limiter", fillcolor="#E8F5E9", color="#2E7D32"];
 
     // ── Extraction Agent ──
     subgraph cluster_extraction {
@@ -29,11 +29,11 @@ digraph architecture {
         color="#F9A825";
         fontcolor="#E65100";
 
-        gliner [label="Phase A: GLiNER2 (205M)\n━━━━━━━━━━━━━━━━━━━\n• NER → 9 entity types\n• RE → 26 relation types\n• ~50ms/article, CPU\n• Text-span grounded", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
-        canon  [label="Phase B: LLM Canonicalization\n━━━━━━━━━━━━━━━━━━━━━━━━\n• Raw spans → canonical names\n• Generate aliases\n• Update relation names\n• ~500 tokens, lightweight", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
+        gliner [label="Phase A: GLiNER2 (205M)\n━━━━━━━━━━━━━━━━━━━\n• NER → 9 entity types\n• RE → 26 relation types\n• ~50ms/article, CPU\n• Text-span grounded\n• Confidence scores per entity", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
+        canon  [label="Phase B: LLM Canonicalization\n+ Type Correction\n━━━━━━━━━━━━━━━━━━━━━━━━\n• Raw spans → canonical names\n• Generate aliases\n• Confidence < 0.8 → verify type\n• ~500 tokens, lightweight", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
         enrich [label="Phase C: LLM Enrichment\n━━━━━━━━━━━━━━━━━━━━━\n• Causal flag classification\n• Temporal marker attachment\n• Event extraction (max 5)", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
 
-        gliner -> canon [label="raw entities\n+ relations", color="#E65100", fontcolor="#E65100"];
+        gliner -> canon [label="entities w/ confidence\n+ relations", color="#E65100", fontcolor="#E65100"];
         canon -> enrich [label="canonicalized\nentities + rels", color="#E65100", fontcolor="#E65100"];
     }
 
@@ -46,7 +46,7 @@ digraph architecture {
         color="#7B1FA2";
         fontcolor="#4A148C";
 
-        tier1 [label="Tier 1: Deterministic\n━━━━━━━━━━━━━━━━━━━\n• Alias table (Postgres)\n• Substring containment\n• Acronym expansion\n• O(N), no LLM", fillcolor="#F8EAF6", color="#7B1FA2"];
+        tier1 [label="Tier 1: Deterministic\n━━━━━━━━━━━━━━━━━━━\n• Alias table (Postgres)\n• Acronym expansion\n• LLM-provided aliases\n• O(N), no LLM", fillcolor="#F8EAF6", color="#7B1FA2"];
         tier2 [label="Tier 2: Embeddings\n━━━━━━━━━━━━━━━━━━\n• all-MiniLM-L6-v2\n• Type-blocked similarity\n• >0.95 → auto-merge\n• O(N log N), no LLM", fillcolor="#F8EAF6", color="#7B1FA2"];
         tier3 [label="Tier 3: LLM Disambiguation\n━━━━━━━━━━━━━━━━━━━━━━━\n• Ambiguous pairs (0.80-0.95)\n• Batch 20 pairs per call\n• O(K), K ≪ N", fillcolor="#F8EAF6", color="#7B1FA2"];
 
@@ -57,23 +57,65 @@ digraph architecture {
     // ── Merge Table ──
     merge_table [label="Persistent Merge Table\n(Postgres: entity_alias)\n━━━━━━━━━━━━━━━━━━━━━\ntyped + untyped aliases\nO(1) lookup", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
 
+    // ── Article Dedup ──
+    article_db [label="Article Dedup\n(Postgres: scraped_article)\n━━━━━━━━━━━━━━━━━━━━━\nURL + title dedup", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
     // ── Temporal Agent ──
     temporal [label="Temporal Agent\n━━━━━━━━━━━━━━━━━\n• State tracking\n• Date attachment\n• current vs historical", fillcolor="#E8EAF6", color="#283593"];
 
-    // ── Inference Agent ──
-    inference [label="Inference Agent\n━━━━━━━━━━━━━━━━━\n• Cross-domain causal chains\n• Impact propagation\n• Weak link detection", fillcolor="#E8EAF6", color="#283593"];
-
     // ── Storage ──
-    neo4j [label="Neo4j Graph DB\n━━━━━━━━━━━━━━━━━\nEntity, Event, State,\nArticle nodes\n+ typed relationships", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
+    neo4j [label="Neo4j Graph DB\n━━━━━━━━━━━━━━━━━\nEntity, Event, Article\nnodes + RELATES_TO,\nINVOLVED_IN, EVIDENCES", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
 
     // ── API ──
-    api [label="FastAPI\n━━━━━━━━━━━━\n/api/graph\n/api/visualize", fillcolor="#E0F7FA", color="#00838F", shape=box];
+    subgraph cluster_api {
+        label="  FastAPI Backend  ";
+        labeljust=l;
+        style=filled;
+        fillcolor="#E0F7FA";
+        color="#00838F";
+        fontcolor="#006064";
+
+        api_graph [label="/api/graph\n━━━━━━━━━━━━\nGraph data for\nvisualization", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_chat  [label="/api/chat\n━━━━━━━━━━━━\nConversational\nQ&A endpoint", fillcolor="#B2EBF2", color="#00838F", shape=box];
+    }
+
+    // ── Chat Agent (LangGraph) ──
+    subgraph cluster_chat {
+        label="  Chat Agent (LangGraph)  ";
+        labeljust=l;
+        style=filled;
+        fillcolor="#FFF3E0";
+        color="#E65100";
+        fontcolor="#BF360C";
+
+        router [label="Router\n━━━━━━━━\nDirect / Graph?", fillcolor="#FFE0B2", color="#E65100", shape=diamond];
+        cypher_gen [label="Cypher Generator\n━━━━━━━━━━━━━━━━━\nNL → Cypher query\nSchema-aware prompts\nQuery templates", fillcolor="#FFE0B2", color="#E65100"];
+        cypher_exec [label="Cypher Executor\n━━━━━━━━━━━━━━━━━\nRun on Neo4j\nNeighborhood enrichment\nSafety guards", fillcolor="#FFE0B2", color="#E65100"];
+        synthesize [label="Synthesizer\n━━━━━━━━━━━━━\nGraph data → NL\nCitations + context", fillcolor="#FFE0B2", color="#E65100"];
+        direct [label="Direct Answer\n━━━━━━━━━━━━━\nGreetings, meta\nquestions", fillcolor="#FFE0B2", color="#E65100"];
+
+        router -> cypher_gen [label="graph", color="#E65100", fontcolor="#BF360C"];
+        router -> direct [label="direct", color="#E65100", fontcolor="#BF360C"];
+        cypher_gen -> cypher_exec [color="#E65100"];
+        cypher_exec -> synthesize [color="#E65100"];
+    }
 
     // ── Frontend ──
-    viz [label="Visualization\n(D3.js / Deck.gl)", fillcolor="#ECEFF1", color="#37474F", shape=box];
+    subgraph cluster_frontend {
+        label="  Frontend  ";
+        labeljust=l;
+        style=filled;
+        fillcolor="#ECEFF1";
+        color="#37474F";
+        fontcolor="#263238";
+
+        viz [label="Graph Visualization\n(vis-network.js)\n━━━━━━━━━━━━━━━━━━━\nInteractive node/edge view\nClick → sources + rels\nType-colored nodes", fillcolor="#CFD8DC", color="#37474F", shape=box];
+        chat_ui [label="Chat Interface\n(/chat)\n━━━━━━━━━━━━━━━━\nConversational Q&A\nCypher display\nConversation history", fillcolor="#CFD8DC", color="#37474F", shape=box];
+    }
 
     // ── Edges ──
     rss -> scraper [label="URLs", color="#555555"];
+    scraper -> article_db [label="dedup check", color="#00695C", style=dashed, dir=both];
     scraper -> gliner [label="list[Article]", color="#555555"];
     enrich -> tier1 [label="list[ArticleExtraction]", color="#555555"];
 
@@ -83,10 +125,26 @@ digraph architecture {
     tier3 -> merge_table [label="save\naliases", color="#00695C", fontcolor="#00695C", style=dashed];
 
     tier3 -> temporal [label="resolved extractions", color="#555555"];
-    temporal -> inference [color="#555555"];
-    inference -> neo4j [label="write graph", color="#555555"];
-    neo4j -> api [label="Cypher queries", color="#555555"];
-    api -> viz [color="#555555"];
+    temporal -> neo4j [label="write graph", color="#555555"];
+    neo4j -> api_graph [label="Cypher", color="#555555"];
+    api_graph -> viz [color="#555555"];
+
+    // Chat flow
+    api_chat -> router [label="question +\nhistory", color="#E65100", fontcolor="#BF360C"];
+    cypher_exec -> neo4j [label="Cypher\nquery", color="#C62828", fontcolor="#C62828", style=dashed];
+    synthesize -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed];
+    direct -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed];
+    api_chat -> chat_ui [color="#555555"];
+
+    // ── LLM Provider ──
+    groq [label="Groq API\n(openai/gpt-oss-20b)\n━━━━━━━━━━━━━━━━━━━\nStructured output\n(json_schema mode)", fillcolor="#FFFDE7", color="#F57F17", shape=box3d];
+
+    canon -> groq [style=dashed, color="#F57F17", dir=both];
+    enrich -> groq [style=dashed, color="#F57F17", dir=both];
+    tier3 -> groq [style=dashed, color="#F57F17", dir=both];
+    cypher_gen -> groq [style=dashed, color="#F57F17", dir=both];
+    synthesize -> groq [style=dashed, color="#F57F17", dir=both];
+    router -> groq [style=dashed, color="#F57F17", dir=both];
 
     // ── Legend ──
     subgraph cluster_legend {
@@ -100,9 +158,11 @@ digraph architecture {
         l1 [label="🟠  Extraction (per article)"];
         l2 [label="🟣  Resolution (cross-article)"];
         l3 [label="🔵  Temporal + Inference"];
-        l4 [label="🟢  Scraper"];
-        l5 [label="🔴  Storage"];
+        l4 [label="🟢  Scraper + Storage"];
+        l5 [label="🔴  Neo4j Graph DB"];
+        l6 [label="🟡  LLM Provider (Groq)"];
+        l7 [label="🔷  Chat Agent (LangGraph)"];
 
-        l1 -> l2 -> l3 -> l4 -> l5 [style=invis];
+        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 [style=invis];
     }
 }
