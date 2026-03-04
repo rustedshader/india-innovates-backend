@@ -215,3 +215,146 @@ def index():
     </script>
 </body>
 </html>"""
+
+
+@router.get("/chat", response_class=HTMLResponse)
+def chat_page():
+    return """<!DOCTYPE html>
+<html>
+<head>
+    <title>Graph Chat — Intelligence Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a; color: #e0e0e0;
+            display: flex; flex-direction: column; height: 100vh;
+        }
+        header {
+            padding: 12px 20px; border-bottom: 1px solid #222;
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(10,10,10,0.95); backdrop-filter: blur(10px);
+        }
+        header h1 { font-size: 16px; color: #4fc3f7; font-weight: 600; }
+        header a { color: #666; font-size: 12px; text-decoration: none; }
+        header a:hover { color: #4fc3f7; }
+        #messages {
+            flex: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .msg {
+            max-width: 720px; padding: 12px 16px; border-radius: 12px;
+            line-height: 1.6; font-size: 14px; white-space: pre-wrap;
+        }
+        .msg.user {
+            align-self: flex-end; background: #1a3a5c; color: #e3f2fd;
+            border-bottom-right-radius: 4px;
+        }
+        .msg.assistant {
+            align-self: flex-start; background: #1a1a1a; border: 1px solid #282828;
+            border-bottom-left-radius: 4px;
+        }
+        .msg.assistant .cypher-tag {
+            display: inline-block; background: #1a2a1a; color: #81c784;
+            font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
+            padding: 6px 10px; border-radius: 6px; margin-top: 8px;
+            border: 1px solid #2a3a2a; word-break: break-all;
+        }
+        .msg.system {
+            align-self: center; color: #666; font-size: 12px;
+            font-style: italic; padding: 4px;
+        }
+        #input-area {
+            padding: 12px 20px; border-top: 1px solid #222;
+            display: flex; gap: 10px; background: rgba(10,10,10,0.95);
+        }
+        #input-area input {
+            flex: 1; padding: 10px 14px; border-radius: 8px;
+            border: 1px solid #333; background: #111; color: #fff;
+            font-size: 14px; outline: none;
+        }
+        #input-area input:focus { border-color: #4fc3f7; }
+        #input-area input::placeholder { color: #555; }
+        #input-area button {
+            padding: 10px 20px; border-radius: 8px; border: none;
+            background: #1565c0; color: #fff; font-size: 14px;
+            cursor: pointer; font-weight: 500;
+        }
+        #input-area button:hover { background: #1976d2; }
+        #input-area button:disabled { background: #333; color: #666; cursor: not-allowed; }
+        .typing { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Intelligence Graph Chat</h1>
+        <a href="/">← Graph View</a>
+    </header>
+    <div id="messages">
+        <div class="msg system">Ask questions about entities, relationships, events, and trends in the knowledge graph.</div>
+    </div>
+    <div id="input-area">
+        <input id="q" type="text" placeholder="Ask about the knowledge graph..." autocomplete="off" />
+        <button id="send" onclick="send()">Send</button>
+    </div>
+    <script>
+        const msgs = document.getElementById('messages');
+        const qInput = document.getElementById('q');
+        const sendBtn = document.getElementById('send');
+        let history = [];
+
+        qInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !sendBtn.disabled) send(); });
+
+        async function send() {
+            const q = qInput.value.trim();
+            if (!q) return;
+            qInput.value = '';
+
+            // User message
+            addMsg('user', q);
+            history.push({ role: 'user', content: q });
+
+            // Typing indicator
+            const typing = document.createElement('div');
+            typing.className = 'msg assistant typing';
+            typing.textContent = 'Thinking...';
+            msgs.appendChild(typing);
+            msgs.scrollTop = msgs.scrollHeight;
+            sendBtn.disabled = true;
+
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: q, history: history.slice(0, -1) }),
+                });
+                const data = await resp.json();
+                typing.remove();
+
+                let content = data.answer;
+                addMsg('assistant', content, data.cypher);
+                history.push({ role: 'assistant', content: data.answer });
+            } catch (err) {
+                typing.remove();
+                addMsg('assistant', 'Error: ' + err.message);
+            }
+            sendBtn.disabled = false;
+            qInput.focus();
+        }
+
+        function addMsg(role, text, cypher) {
+            const div = document.createElement('div');
+            div.className = 'msg ' + role;
+            div.textContent = text;
+            if (cypher && cypher !== 'NONE') {
+                const tag = document.createElement('div');
+                tag.className = 'cypher-tag';
+                tag.textContent = cypher;
+                div.appendChild(tag);
+            }
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+    </script>
+</body>
+</html>"""
