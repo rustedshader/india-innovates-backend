@@ -2,7 +2,7 @@
 
 ## Vision
 
-An AI-powered intelligence graph that ingests global news, extracts entities and their typed relationships, resolves them across sources, tracks temporal state changes, and discovers cross-domain causal chains. The graph powers strategic report generation for decision-makers.
+An AI-powered intelligence graph that ingests global news, extracts entities and their typed relationships, resolves them across sources, tracks temporal state changes, and enables conversational querying over the knowledge graph. The graph powers strategic Q&A and report generation for decision-makers.
 
 ---
 
@@ -44,12 +44,16 @@ RSS Feeds
 └──────┬───────────┘
        │
        ▼
-┌──────────────────┐
-│ Inference Agent  │  Cross-domain causal chains, impact propagation, weak link detection
-└──────┬───────────┘
+    Neo4j Graph
        │
-       ▼
-    Neo4j Graph ──→ FastAPI ──→ Visualization / Strategic Reports
+       ├──→ FastAPI /api/graph ──→ Visualization (vis-network.js)
+       │
+       └──→ FastAPI /api/chat  ──→ Chat UI (/chat)
+                    │
+              ┌─────┴──────┐
+              │ Chat Agent  │  LangGraph: Router → Cypher Gen → Execute → Synthesize
+              │ (Graph RAG) │  NL question → Cypher → Neo4j → NL answer
+              └────────────┘
 ```
 
 ---
@@ -61,8 +65,7 @@ RSS Feeds
 | Label    | Key Properties                                      |
 |----------|-----------------------------------------------------|
 | Entity   | name, type, first_seen, last_updated                |
-| Event    | name, date, status (ongoing/concluded), description |
-| State    | value, confidence                                   |
+| Event    | name, date, status (ongoing/concluded)              |
 | Article  | url, title, source, pub_date                        |
 
 ### Entity Types
@@ -71,13 +74,17 @@ Person, Organization, Country, Location, Event, Policy, Technology, Economic_Ind
 
 ### Relationships
 
-| Pattern                        | Properties                                    |
-|--------------------------------|-----------------------------------------------|
-| (Entity)-[r]->(Entity)        | type (verb phrase), since, confidence, current |
-| (Entity)-[:INVOLVED_IN]->(Event) | role                                        |
-| (Entity)-[:HAS_STATE]->(State)   | from, to (null = current)                  |
-| (Article)-[:EVIDENCES]->(Entity) | extracted_at                                |
-| (Article)-[:EVIDENCES_REL]->(relationship) | via properties on the rel          |
+| Pattern                                    | Properties                                    |
+|--------------------------------------------|-----------------------------------------------|
+| (Entity)-[:RELATES_TO]->(Entity)           | type (verb phrase), since, confidence, causal, current |
+| (Entity)-[:INVOLVED_IN]->(Event)           |                                               |
+| (Article)-[:EVIDENCES]->(Entity)           |                                               |
+| (Article)-[:EVIDENCES]->(Event)            |                                               |
+| (Article)-[:EVIDENCES_REL]->(Entity)       | relation_type                                 |
+
+Note: Entity-to-Entity relationships are stored as `:RELATES_TO` edges with a `type`
+property holding the verb phrase (e.g. `r.type = "sanctions"`), NOT as dynamic
+relationship types.
 
 Relationship types are from a **fixed vocabulary** of 26 geopolitical relation types (extracted by GLiNER2):
 - `sanctions`, `allied_with`, `opposes`, `trades_with`, `supplies_to`, `invaded`,
@@ -228,7 +235,57 @@ Example:
 
 ---
 
-## Stage 4: Inference Agent (Post-batch)
+## Stage 4: Chat Agent — Graph RAG (LangGraph)
+
+Conversational Q&A over the knowledge graph using natural language.
+
+### Architecture (LangGraph state machine)
+
+```
+User question + history
+       │
+       ▼
+   ┌────────┐
+   │ Router │  LLM decides: needs graph data, or direct answer?
+   └──┬──┬──┘
+      │  │
+  graph  direct
+      │  │
+      ▼  └──▶ Direct Answer (greetings, meta) ──▶ Response
+┌────────────────┐
+│ Cypher Generator│  NL → Cypher using schema-aware prompt + query templates
+└───────┬────────┘
+        ▼
+┌────────────────┐
+│ Cypher Executor │  Run on Neo4j, safety guards (read-only), 25 row limit
+│                │  Auto neighborhood enrichment for thin results
+└───────┬────────┘
+        ▼
+┌────────────────┐
+│  Synthesizer   │  Graph data → natural language intelligence briefing
+└───────┬────────┘
+        ▼
+     Response
+```
+
+### Key features
+
+- **Schema-aware Cypher generation**: Prompt includes full Neo4j schema + query templates
+  for common patterns ("tell me about X", "how are X and Y related", "what events involve X")
+- **Neighborhood auto-enrichment**: When initial Cypher returns thin results (just name/type),
+  automatically fetches relationships, events, and source articles for mentioned entities
+- **Conversation history**: Supports follow-up questions with context from previous turns
+- **Safety**: Read-only queries only, mutation keywords rejected
+- **Provenance**: Source articles included in responses when available
+
+### Endpoints
+
+- `POST /api/chat` — JSON: `{question, history[]}` → `{answer, cypher, route}`
+- `GET /chat` — Full chat UI with conversation history, typing indicators, Cypher display
+
+---
+
+## Future: Inference Agent (Post-batch)
 
 Runs after each batch on the updated graph.
 
@@ -239,7 +296,7 @@ Runs after each batch on the updated graph.
 
 ---
 
-## Stage 5: Strategic Report Generation (Future)
+## Future: Strategic Report Generation
 
 1. Query: "Strategic assessment of semiconductor supply chains"
 2. Graph traversal: Pull subgraph around target entities (2-3 hops)
@@ -252,13 +309,14 @@ Runs after each batch on the updated graph.
 
 | Phase | Scope                                            | Status      |
 |-------|--------------------------------------------------|-------------|
-| 1     | Extraction Agent with typed relations + temporal | Building    |
-| 2     | Entity Resolution (Tier 1 + 2 + 3)              | Building    |
-| 3     | Updated Neo4j schema + graph builder             | Building    |
-| 4     | Updated API + visualization                      | Building    |
-| 5     | Temporal Agent with state tracking               | Planned     |
-| 6     | Inference Agent for cross-domain chains          | Planned     |
-| 7     | Strategic report generation endpoint             | Planned     |
+| 1     | Extraction Agent with typed relations + temporal | ✅ Done      |
+| 2     | Entity Resolution (Tier 1 + 2 + 3)              | ✅ Done      |
+| 3     | Neo4j schema + graph builder                     | ✅ Done      |
+| 4     | API + graph visualization                        | ✅ Done      |
+| 5     | Chat Agent — Graph RAG (LangGraph)               | ✅ Done      |
+| 6     | Temporal Agent with state tracking               | Partial     |
+| 7     | Inference Agent for cross-domain chains          | Planned     |
+| 8     | Strategic report generation endpoint             | Planned     |
 
 ---
 
@@ -268,8 +326,8 @@ Runs after each batch on the updated graph.
 agents/
     extraction.py       # Stage 1: Per-article entity/relation extraction
     resolution.py       # Stage 2: 3-tier entity resolution funnel
-    temporal.py         # Stage 3: Temporal state tracking (future)
-    inference.py        # Stage 4: Cross-domain inference (future)
+    temporal.py         # Stage 3: Temporal state tracking
+    chat.py             # Stage 4: LangGraph chat agent (Graph RAG)
 graphs/
     schemas.py          # Pydantic models for all stages
     prompts.py          # LLM prompt templates
@@ -278,13 +336,17 @@ api/
     __init__.py         # FastAPI app
     routes/
         graph.py        # /api/graph endpoint
-        visualization.py # / HTML visualization
+        chat.py         # /api/chat endpoint (conversational Q&A)
+        visualization.py # / graph viz + /chat chat UI
 scrapers/
-    news_rss.py         # RSS scraper
+    news_rss.py         # RSS scraper (title dedup, max_per_feed)
 models/
     database.py         # SQLAlchemy engine
     scraped_article.py  # Article dedup table
     entity_alias.py     # Persistent merge table
+docs/
+    plan.md             # This file
+    architecture.dot    # Graphviz source → .png/.svg
 config.py
 main.py
 ```
