@@ -35,8 +35,11 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 from langgraph.graph import END, START, StateGraph
 from neo4j import GraphDatabase
+from sqlalchemy import select
 
 from config import NEO4J_URI, NEO4J_AUTH
+from models.database import SessionLocal
+from models.scraped_article import ScrapedArticle
 
 logger = logging.getLogger(__name__)
 
@@ -172,10 +175,11 @@ class CypherQueryPlan(BaseModel):
 SYNTHESIZE_SYSTEM = """You are a geopolitical intelligence analyst. Given a user's question and data retrieved from a knowledge graph, provide a clear, concise answer.
 
 Rules:
-- Base your answer ONLY on the provided graph data. Do not make up facts.
+- Base your answer ONLY on the provided graph data and article content. Do not make up facts.
 - If the data is empty or insufficient, say so honestly.
 - Mention specific entities, relationships, and dates from the data.
-- If source articles are available, reference them.
+- If source articles are available, reference them by title and incorporate relevant details from the article content.
+- When full article content is provided, use it to add depth, context, and nuance to your answer.
 - Keep answers focused and structured. Use bullet points for lists.
 - For complex questions, organize by theme or entity.
 """
@@ -205,6 +209,8 @@ class ChatState(TypedDict):
     cypher_queries: list[str]       # one or more generated Cypher queries
     graph_results: list[str]        # formatted results per query
     graph_context: str              # combined context string for synthesis
+    article_urls: list[str]         # article URLs found in graph results (for Postgres lookup)
+    article_content: str            # fetched article full text for deeper context
     answer: str                     # final answer to return
 
 
@@ -285,11 +291,13 @@ class GraphChatAgent:
         if not queries:
             state["graph_results"] = []
             state["graph_context"] = ""
+            state["article_urls"] = []
             state["route"] = "direct"  # fallback to direct answer
             return state
 
         all_results: list[str] = []
         all_entity_names: list[str] = []
+        all_article_urls: list[str] = []
 
         with self.driver.session() as session:
             for i, cypher in enumerate(queries):
@@ -312,6 +320,9 @@ class GraphChatAgent:
                         all_results.append(f"{label}:\n{context}")
                         logger.info(f"{label} returned {len(records)} rows")
 
+                        # Collect article URLs from raw records
+                        all_article_urls.extend(_extract_article_urls(records))
+
                         # Collect entity names for neighborhood enrichment
                         if _is_thin_result(records):
                             all_entity_names.extend(_extract_entity_names(records))
@@ -329,6 +340,7 @@ class GraphChatAgent:
 
         state["graph_results"] = all_results
         state["graph_context"] = "\n\n".join(all_results)
+        state["article_urls"] = list(dict.fromkeys(all_article_urls))  # dedup, preserve order
         return state
 
     def _fetch_neighborhood(self, session, entity_names: list[str]) -> str:
@@ -387,14 +399,52 @@ class GraphChatAgent:
 
         return "\n".join(all_lines)
 
+    def _fetch_articles_node(self, state: ChatState) -> ChatState:
+        """Fetch full article content from Postgres for articles found in graph results."""
+        urls = state.get("article_urls", [])
+        if not urls:
+            state["article_content"] = ""
+            return state
+
+        db = SessionLocal()
+        try:
+            rows = db.execute(
+                select(ScrapedArticle.url, ScrapedArticle.title, ScrapedArticle.full_text)
+                .where(ScrapedArticle.url.in_(urls[:5]))
+            ).all()
+
+            parts = []
+            for url, title, text in rows:
+                if text:
+                    snippet = text[:2000]
+                    if len(text) > 2000:
+                        snippet += "\n... [truncated]"
+                    parts.append(f"### {title}\nURL: {url}\n{snippet}")
+
+            state["article_content"] = "\n\n".join(parts)
+            logger.info(f"Fetched content for {len(parts)} articles from Postgres")
+        except Exception as e:
+            logger.error(f"Article content fetch failed: {e}")
+            state["article_content"] = ""
+        finally:
+            db.close()
+
+        return state
+
     def _synthesize_node(self, state: ChatState) -> ChatState:
         """Synthesize a natural-language answer from graph results."""
+        user_content = (
+            f"User question: {state['question']}\n\n"
+            f"Knowledge graph data:\n{state['graph_context']}"
+        )
+
+        article_ctx = state.get("article_content", "")
+        if article_ctx:
+            user_content += f"\n\nFull article content for reference:\n{article_ctx}"
+
         messages = [
             SystemMessage(content=SYNTHESIZE_SYSTEM),
-            HumanMessage(content=(
-                f"User question: {state['question']}\n\n"
-                f"Knowledge graph data:\n{state['graph_context']}"
-            )),
+            HumanMessage(content=user_content),
         ]
         resp = self.llm.invoke(messages)
         state["answer"] = resp.content
@@ -436,6 +486,7 @@ class GraphChatAgent:
         g.add_node("router", self._route_node)
         g.add_node("generate_cypher", self._generate_cypher_node)
         g.add_node("execute_cypher", self._execute_cypher_node)
+        g.add_node("fetch_articles", self._fetch_articles_node)
         g.add_node("synthesize", self._synthesize_node)
         g.add_node("direct_answer", self._direct_answer_node)
 
@@ -443,7 +494,8 @@ class GraphChatAgent:
         g.add_edge(START, "router")
         g.add_conditional_edges("router", self._route_edge)
         g.add_edge("generate_cypher", "execute_cypher")
-        g.add_edge("execute_cypher", "synthesize")
+        g.add_edge("execute_cypher", "fetch_articles")
+        g.add_edge("fetch_articles", "synthesize")
         g.add_edge("synthesize", END)
         g.add_edge("direct_answer", END)
 
@@ -481,6 +533,8 @@ class GraphChatAgent:
             "cypher_queries": [],
             "graph_results": [],
             "graph_context": "",
+            "article_urls": [],
+            "article_content": "",
             "answer": "",
         }
 
@@ -559,3 +613,27 @@ def _extract_entity_names(records: list[dict]) -> list[str]:
             if isinstance(v, str) and k.lower() in ("name", "entity", "entity_name", "e.name"):
                 names.append(v)
     return list(dict.fromkeys(names))  # dedup preserving order
+
+
+def _extract_article_urls(records: list[dict]) -> list[str]:
+    """Extract article URLs from raw Neo4j records.
+
+    Handles both flat records (with a column named 'url' or 'a.url')
+    and nested dicts/lists (e.g. collected article objects like
+    {url: ..., title: ...}).
+    """
+    urls: list[str] = []
+    for rec in records:
+        for key, val in rec.items():
+            # Direct url column (e.g. RETURN a.url)
+            if isinstance(val, str) and key.lower() in ("url", "a.url", "article_url"):
+                urls.append(val)
+            # Nested dict with a 'url' key (e.g. collected article object)
+            elif isinstance(val, dict) and "url" in val and val["url"]:
+                urls.append(val["url"])
+            # List of dicts (e.g. collect(DISTINCT {url: a.url, title: a.title}))
+            elif isinstance(val, list):
+                for item in val:
+                    if isinstance(item, dict) and "url" in item and item["url"]:
+                        urls.append(item["url"])
+    return urls
