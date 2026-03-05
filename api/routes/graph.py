@@ -1,9 +1,39 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Query
 from neo4j import GraphDatabase
 from config import NEO4J_URI, NEO4J_AUTH
 
 router = APIRouter(prefix="/api")
 driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
+
+# Cypher fragment: parse RSS pub_date ("Thu, 06 Mar 2026 ...") into "YYYY-MM-DD"
+_PARSE_DATE_CYPHER = """
+    CASE
+        WHEN {src}.pub_date CONTAINS ','
+        THEN split(split({src}.pub_date, ', ')[1], ' ')[2] + '-' +
+             CASE split(split({src}.pub_date, ', ')[1], ' ')[1]
+                 WHEN 'Jan' THEN '01' WHEN 'Feb' THEN '02' WHEN 'Mar' THEN '03'
+                 WHEN 'Apr' THEN '04' WHEN 'May' THEN '05' WHEN 'Jun' THEN '06'
+                 WHEN 'Jul' THEN '07' WHEN 'Aug' THEN '08' WHEN 'Sep' THEN '09'
+                 WHEN 'Oct' THEN '10' WHEN 'Nov' THEN '11' WHEN 'Dec' THEN '12'
+                 ELSE '01' END + '-' +
+             split(split({src}.pub_date, ', ')[1], ' ')[0]
+        ELSE {src}.pub_date
+    END
+"""
+
+
+def _compute_date_cutoff(date_range: str | None) -> str | None:
+    """Return ISO date string cutoff for a given date range, or None."""
+    if not date_range or date_range == "all":
+        return None
+    days_map = {"today": 0, "7d": 7, "30d": 30, "90d": 90}
+    days = days_map.get(date_range, 7)
+    # Use IST (UTC+5:30) since user is in India
+    ist = timezone(timedelta(hours=5, minutes=30))
+    cutoff = datetime.now(ist).date() - timedelta(days=days)
+    return cutoff.isoformat()
 
 
 @router.get("/graph")
@@ -12,6 +42,7 @@ def get_graph(
     min_connections: int = Query(1, ge=0, description="Minimum relationships to include a node"),
     entity_type: str | None = Query(None, description="Filter by entity type (comma-separated, e.g. Country,Person)"),
     search: str | None = Query(None, description="Search for entity by name (case-insensitive)"),
+    date_range: str | None = Query(None, description="Date filter: 'today', '7d', '30d', '90d', or 'all'"),
 ):
     """Return a filtered subgraph for visualization.
 
@@ -32,6 +63,20 @@ def get_graph(
             where_clauses.append("toLower(e.name) CONTAINS toLower($search)")
             params["search"] = search
 
+        # Date range filter — only include entities evidenced by recent articles
+        date_subquery = ""
+        date_cutoff = _compute_date_cutoff(date_range)
+        if date_cutoff:
+            parse_expr = _PARSE_DATE_CYPHER.format(src="a")
+            date_subquery = f"""
+                MATCH (e)<-[:EVIDENCES]-(a:Article)
+                WHERE a.pub_date IS NOT NULL AND a.pub_date <> ''
+                WITH e, a, {parse_expr} AS parsed_date
+                WHERE parsed_date >= $date_cutoff
+                WITH DISTINCT e
+            """
+            params["date_cutoff"] = date_cutoff
+
         where_str = " AND ".join(where_clauses)
         if where_str:
             where_str = "WHERE " + where_str
@@ -40,6 +85,7 @@ def get_graph(
         entity_query = f"""
             MATCH (e:Entity)
             {where_str}
+            {'WITH e ' + date_subquery if date_subquery else ''}
             OPTIONAL MATCH (e)-[r:RELATES_TO]-()
             WITH e, count(r) AS degree
             WHERE degree >= $min_connections
@@ -107,25 +153,35 @@ def get_graph(
             for n in unique_nodes
         ]
 
-        sources_result = session.run("""
+        # Build date filter clause for source articles
+        source_date_filter = ""
+        source_params: dict = {"nodes": node_names}
+        if date_cutoff:
+            parse_a = _PARSE_DATE_CYPHER.format(src="a")
+            source_date_filter = f"AND a.pub_date IS NOT NULL AND ({parse_a}) >= $date_cutoff"
+            source_params["date_cutoff"] = date_cutoff
+
+        sources_result = session.run(f"""
             UNWIND $nodes AS node
-            CALL {
+            CALL {{
                 WITH node
                 WITH node WHERE node.label = 'Entity'
-                MATCH (a:Article)-[:EVIDENCES]->(e:Entity {name: node.name})
+                MATCH (a:Article)-[:EVIDENCES]->(e:Entity {{name: node.name}})
+                WHERE true {source_date_filter}
                 RETURN node.name AS name, a.title AS title, a.url AS url,
                        a.source AS source, a.pub_date AS pub_date
                 LIMIT 20
                 UNION
                 WITH node
                 WITH node WHERE node.label = 'Event'
-                MATCH (a:Article)-[:EVIDENCES]->(ev:Event {name: node.name})
+                MATCH (a:Article)-[:EVIDENCES]->(ev:Event {{name: node.name}})
+                WHERE true {source_date_filter}
                 RETURN node.name AS name, a.title AS title, a.url AS url,
                        a.source AS source, a.pub_date AS pub_date
                 LIMIT 20
-            }
-            RETURN name, collect({title: title, url: url, source: source, pub_date: pub_date}) AS sources
-        """, nodes=node_names).data()
+            }}
+            RETURN name, collect({{title: title, url: url, source: source, pub_date: pub_date}}) AS sources
+        """, **source_params).data()
 
         # Build lookup: name -> sources
         sources_by_name = {r["name"]: r["sources"] for r in sources_result}

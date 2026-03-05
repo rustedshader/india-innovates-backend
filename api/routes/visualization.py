@@ -110,6 +110,15 @@ def index():
         <input type="range" id="minConnSlider" min="0" max="10" value="1" />
         <span class="range-val" id="minConnVal">1</span>
         <div class="divider"></div>
+        <label>Time</label>
+        <select id="dateRange">
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="7d" selected>Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="90d">Last 90 Days</option>
+        </select>
+        <div class="divider"></div>
         <button onclick="loadGraph()">Apply</button>
         <a href="/chat" style="color:#666;font-size:12px;text-decoration:none;margin-left:auto;">Chat →</a>
     </div>
@@ -160,10 +169,12 @@ def index():
             const entityType = document.getElementById('entityType').value;
             const limit = document.getElementById('limitSlider').value;
             const minConn = document.getElementById('minConnSlider').value;
+            const dateRange = document.getElementById('dateRange').value;
 
             const params = new URLSearchParams({ limit, min_connections: minConn });
             if (search) params.set('search', search);
             if (entityType) params.set('entity_type', entityType);
+            if (dateRange && dateRange !== 'all') params.set('date_range', dateRange);
 
             document.getElementById('loadingIndicator').style.display = 'block';
 

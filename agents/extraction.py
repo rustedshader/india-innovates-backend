@@ -73,17 +73,11 @@ RELATION_LABELS: dict[str, str] = {
     "supports": "Politically or materially supports",
 }
 
-# Map lowercase GLiNER2 type keys → canonical entity type strings
+# Auto-derive canonical type names from ENTITY_LABELS keys
+# e.g. "person" → "Person", "economic_indicator" → "Economic_Indicator"
 _ENTITY_TYPE_MAP: dict[str, str] = {
-    "person": "Person",
-    "organization": "Organization",
-    "country": "Country",
-    "location": "Location",
-    "policy": "Policy",
-    "technology": "Technology",
-    "economic_indicator": "Economic_Indicator",
-    "military_asset": "Military_Asset",
-    "resource": "Resource",
+    k: "_".join(part.capitalize() for part in k.split("_"))
+    for k in ENTITY_LABELS
 }
 
 
