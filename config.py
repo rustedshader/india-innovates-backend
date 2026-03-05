@@ -15,3 +15,10 @@ NEO4J_AUTH = (os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "Shu
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "india-innovates")
+
+SCRAPE_INTERVAL_SECONDS = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "1800"))
+KAFKA_BATCH_TIMEOUT_SECONDS = int(os.getenv("KAFKA_BATCH_TIMEOUT_SECONDS", "60"))
+KAFKA_BATCH_MAX_SIZE = int(os.getenv("KAFKA_BATCH_MAX_SIZE", "50"))

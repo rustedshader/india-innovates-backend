@@ -8,52 +8,50 @@ An AI-powered intelligence graph that ingests global news, extracts entities and
 
 ## Pipeline Architecture
 
+The system runs as **three independent processes** (Docker-ready):
+
 ```
-RSS Feeds
-    │
-    ▼
-┌──────────────┐
-│   Scraper    │  Fetch RSS + extract full article text
-└──────┬───────┘
-       │ list[Article]
-       ▼
-┌───────────────────────────────────────────────────────────┐
-│              Extraction Agent (hybrid)                     │
-│                                                           │
-│  ┌──────────────┐   ┌────────────────┐   ┌─────────────┐  │
-│  │ GLiNER2(205M)│──▶│ LLM Canon-     │──▶│ LLM Enrich  │  │
-│  │ • NER        │   │ icalization    │   │ • Events    │  │
-│  │ • RE         │   │ • Canonical    │   │ • Causal    │  │
-│  │ ~50ms CPU    │   │   names        │   │ • Temporal  │  │
-│  │              │   │ • Aliases      │   │             │  │
-│  └──────────────┘   └────────────────┘   └─────────────┘  │
-│  Output: list[ArticleExtraction]                          │
-└───────────────────────────┬───────────────────────────────┘
-       │
-       ▼
-┌──────────────────┐
-│ Resolution Agent │  Cross-article: deduplicate & merge entities
-│  3-Tier Funnel   │  Tier 1: Deterministic normalization (O(N))
-│                  │  Tier 2: Embedding similarity + ANN (O(N log N))
-│                  │  Tier 3: LLM disambiguation (O(K), K << N)
-└──────┬───────────┘
-       │ resolved entities + merge table
-       ▼
-┌──────────────────┐
-│ Temporal Agent   │  Attach timestamps, detect state changes, mark current vs historical
-└──────┬───────────┘
-       │
-       ▼
-    Neo4j Graph
-       │
-       ├──→ FastAPI /api/graph ──→ Visualization (vis-network.js)
-       │
-       └──→ FastAPI /api/chat  ──→ Chat UI (/chat)
-                    │
-              ┌─────┴──────┐
-              │ Chat Agent  │  LangGraph: Router → Cypher Gen → Execute → Synthesize
-              │ (Graph RAG) │  NL question → Cypher → Neo4j → NL answer
-              └────────────┘
+                           ┌──────────────┐
+                           │  Redis Set   │  URL dedup across processes
+                           └──────┬───────┘
+                                  │ SISMEMBER / SADD
+┌─────────────────────────────────┼───────────────────────────────────────┐
+│  PRODUCER  (scheduler/producer.py)         every 30min (configurable)  │
+│                                                                       │
+│  RSS Feeds ──▶ Scraper ──▶ Extract full text ──▶ Publish to Kafka     │
+└───────────────────────────────┬───────────────────────────────────────┘
+                                │ Article JSON
+                                ▼
+                     ┌─────────────────────┐
+                     │   Kafka Topic       │
+                     │   india-innovates   │
+                     └──────────┬──────────┘
+                                │ consume (batched)
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  CONSUMER  (scheduler/consumer.py)                  runs continuously  │
+│                                                                       │
+│  GraphBuilder.process_articles(batch)                                  │
+│  ┌───────────────────────────────────────────────────────────────┐     │
+│  │              Extraction Agent (hybrid)                        │     │
+│  │  GLiNER2 (NER+RE) ──▶ LLM Canonicalization ──▶ LLM Enrich   │     │
+│  └───────────────────────────┬───────────────────────────────────┘     │
+│                              ▼                                        │
+│  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐   │
+│  │ Resolution Agent │──▶│ Temporal Agent   │──▶│ Batched UNWIND   │   │
+│  │ (3-Tier Funnel)  │   │ (stub)           │   │ Neo4j + Postgres │   │
+│  └──────────────────┘   └──────────────────┘   └──────────────────┘   │
+└───────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  API SERVER  (main.py)                                                 │
+│                                                                       │
+│  Neo4j Graph ◀──── /api/graph ──▶ Visualization (vis-network.js)      │
+│       │              (server-side filtering, batched source queries)   │
+│       └──── /api/chat ──▶ Chat Agent (LangGraph Graph RAG)            │
+│              │                    ▲                                    │
+│              └── Postgres ────────┘  article full_text for context     │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -259,10 +257,16 @@ User question + history
 ┌────────────────┐
 │ Cypher Executor │  Run on Neo4j, safety guards (read-only), 25 row limit
 │                │  Auto neighborhood enrichment for thin results
+│                │  Collects article URLs from raw records
 └───────┬────────┘
         ▼
 ┌────────────────┐
-│  Synthesizer   │  Graph data → natural language intelligence briefing
+│ Fetch Articles │  Looks up article full_text from Postgres (scraped_articles)
+│                │  Truncates to 2000 chars/article, max 5 articles
+└───────┬────────┘
+        ▼
+┌────────────────┐
+│  Synthesizer   │  Graph data + article content → intelligence briefing
 └───────┬────────┘
         ▼
      Response
@@ -274,6 +278,8 @@ User question + history
   for common patterns ("tell me about X", "how are X and Y related", "what events involve X")
 - **Neighborhood auto-enrichment**: When initial Cypher returns thin results (just name/type),
   automatically fetches relationships, events, and source articles for mentioned entities
+- **Article content retrieval**: After graph queries, fetches actual article text from Postgres
+  to give the LLM deeper context for synthesis (not just titles/URLs from the graph)
 - **Conversation history**: Supports follow-up questions with context from previous turns
 - **Safety**: Read-only queries only, mutation keywords rejected
 - **Provenance**: Source articles included in responses when available
@@ -282,6 +288,31 @@ User question + history
 
 - `POST /api/chat` — JSON: `{question, history[]}` → `{answer, cypher, route}`
 - `GET /chat` — Full chat UI with conversation history, typing indicators, Cypher display
+
+---
+
+## Stage 5: Graph Visualization API
+
+### `/api/graph` — Filtered subgraph for vis-network.js
+
+Server-side filtering to handle large graphs:
+
+| Query Param       | Default | Description                                  |
+|-------------------|---------|----------------------------------------------|
+| `limit`           | 100     | Max entity/event nodes returned (1-1000)     |
+| `min_connections`  | 1       | Hide entities with fewer relationships       |
+| `entity_type`     | all     | Filter by type (comma-separated)             |
+| `search`          | —       | Case-insensitive name search                 |
+
+Only Entity + Event nodes returned (no Article nodes — those are attached as `sources` metadata on click). Nodes ranked by degree (most-connected first).
+
+### `/api/graph/stats` — Aggregate graph counts
+
+Returns total entities, relationships, events, articles, and breakdown by entity type.
+
+### Frontend
+
+Filter toolbar with: search box, entity type dropdown, node limit slider (20–500), min connections slider (0–10). Graph re-renders on Apply.
 
 ---
 
@@ -314,9 +345,41 @@ Runs after each batch on the updated graph.
 | 3     | Neo4j schema + graph builder                     | ✅ Done      |
 | 4     | API + graph visualization                        | ✅ Done      |
 | 5     | Chat Agent — Graph RAG (LangGraph)               | ✅ Done      |
-| 6     | Temporal Agent with state tracking               | Partial     |
-| 7     | Inference Agent for cross-domain chains          | Planned     |
-| 8     | Strategic report generation endpoint             | Planned     |
+| 5b    | Chat: Article content fetching from Postgres     | ✅ Done      |
+| 6     | Kafka pipeline (producer + consumer)             | ✅ Done      |
+| 7     | Graph visualization scaling (server-side filter) | ✅ Done      |
+| 8     | Temporal Agent with state tracking               | Stub        |
+| 9     | Inference Agent for cross-domain chains          | Planned     |
+| 10    | Strategic report generation endpoint             | Planned     |
+
+---
+
+## Running the System
+
+Three independent processes, each suitable for its own Docker container:
+
+```bash
+# Terminal 1: API server
+uv run uvicorn main:app --reload
+
+# Terminal 2: Kafka producer (scrapes every 30min)
+python -m scheduler.producer
+
+# Terminal 3: Kafka consumer (processes batches)
+python -m scheduler.consumer
+```
+
+### Configuration (config.py / environment variables)
+
+| Variable                     | Default           | Description                              |
+|------------------------------|-------------------|------------------------------------------|
+| `KAFKA_BOOTSTRAP_SERVERS`    | `localhost:9092`  | Kafka broker address                     |
+| `KAFKA_TOPIC`                | `india-innovates` | Topic for article messages               |
+| `SCRAPE_INTERVAL_SECONDS`    | `1800` (30min)    | How often the producer scrapes RSS feeds |
+| `KAFKA_BATCH_TIMEOUT_SECONDS`| `60`              | Consumer waits this long to fill a batch |
+| `KAFKA_BATCH_MAX_SIZE`       | `50`              | Max articles per consumer batch          |
+| `REDIS_HOST`                 | `localhost`       | Redis host for URL dedup set             |
+| `REDIS_PORT`                 | `6379`            | Redis port                               |
 
 ---
 
@@ -327,11 +390,14 @@ agents/
     extraction.py       # Stage 1: Per-article entity/relation extraction
     resolution.py       # Stage 2: 3-tier entity resolution funnel
     temporal.py         # Stage 3: Temporal state tracking
-    chat.py             # Stage 4: LangGraph chat agent (Graph RAG)
+    chat.py             # Stage 4: LangGraph chat agent (Graph RAG + article fetching)
 graphs/
     schemas.py          # Pydantic models for all stages
     prompts.py          # LLM prompt templates
-    graph_builder.py    # Orchestrates pipeline, saves to Neo4j
+    graph_builder.py    # Orchestrates pipeline (process_articles), saves to Neo4j
+scheduler/
+    producer.py         # Kafka producer: periodic RSS scraping → publish
+    consumer.py         # Kafka consumer: batch consume → process_articles pipeline
 api/
     __init__.py         # FastAPI app
     routes/
@@ -347,7 +413,7 @@ models/
 docs/
     plan.md             # This file
     architecture.dot    # Graphviz source → .png/.svg
-config.py
+config.py               # All config: DB, Neo4j, Redis, Kafka, scrape intervals
 main.py
 ```
 

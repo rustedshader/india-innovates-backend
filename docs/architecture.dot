@@ -17,8 +17,35 @@ digraph architecture {
         rss [label="RSS Feeds\n(TOI, NDTV, Hindu,\nET, Livemint, ...)", fillcolor="#E3F2FD", color="#1565C0"];
     }
 
-    // ── Scraper ──
-    scraper [label="Scraper\n(news_rss.py)\n━━━━━━━━━━━━━━━━━\nFetch RSS + full text\nTitle-based dedup\nmax_per_feed limiter", fillcolor="#E8F5E9", color="#2E7D32"];
+    // ── Infrastructure ──
+    redis [label="Redis\n━━━━━━━━━━━━━━━━━\nSeen-URL set\n(cross-process dedup)\nSISMEMBER / SADD", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
+
+    kafka [label="Kafka Topic\n(india-innovates)\n━━━━━━━━━━━━━━━━━\nArticle JSON messages\nDecouples scraping\nfrom processing", fillcolor="#E8EAF6", color="#283593", shape=cylinder];
+
+    // ── Producer ──
+    subgraph cluster_producer {
+        label="  PRODUCER  (scheduler/producer.py)  ";
+        labeljust=l;
+        style=filled;
+        fillcolor="#E8F5E9";
+        color="#2E7D32";
+        fontcolor="#1B5E20";
+
+        scraper [label="Scraper\n(news_rss.py)\n━━━━━━━━━━━━━━━━━\nFetch RSS + full text\nTitle-based dedup\nmax_per_feed limiter", fillcolor="#C8E6C9", color="#2E7D32"];
+        publisher [label="Kafka Publisher\n━━━━━━━━━━━━━━━━━\nRedis dedup check\nJSON serialize\nacks=all, retries=3", fillcolor="#C8E6C9", color="#2E7D32"];
+    }
+
+    // ── Consumer ──
+    subgraph cluster_consumer {
+        label="  CONSUMER  (scheduler/consumer.py)  ";
+        labeljust=l;
+        style=filled;
+        fillcolor="#FFFDE7";
+        color="#F9A825";
+        fontcolor="#E65100";
+
+        batch_acc [label="Batch Accumulator\n━━━━━━━━━━━━━━━━━\nMax 50 articles\nor 60s timeout\nManual offset commit", fillcolor="#FFF9C4", color="#F9A825"];
+    }
 
     // ── Extraction Agent ──
     subgraph cluster_extraction {
@@ -30,7 +57,7 @@ digraph architecture {
         fontcolor="#E65100";
 
         gliner [label="Phase A: GLiNER2 (205M)\n━━━━━━━━━━━━━━━━━━━\n• NER → 9 entity types\n• RE → 26 relation types\n• ~50ms/article, CPU\n• Text-span grounded\n• Confidence scores per entity", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
-        canon  [label="Phase B: LLM Canonicalization\n+ Type Correction\n━━━━━━━━━━━━━━━━━━━━━━━━\n• Raw spans → canonical names\n• Generate aliases\n• Confidence < 0.8 → verify type\n• ~500 tokens, lightweight", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
+        canon  [label="Phase B: LLM Canonicalization\n+ Type Correction\n━━━━━━━━━━━━━━━━━━━━━━━━\n• Raw spans → canonical names\n• Generate aliases\n• Confidence < 0.8 → verify type\n• ~500 tokens, lightweight\n• 3-attempt retry", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
         enrich [label="Phase C: LLM Enrichment\n━━━━━━━━━━━━━━━━━━━━━\n• Causal flag classification\n• Temporal marker attachment\n• Event extraction (max 5)", fillcolor="#FFF3E0", color="#EF6C00", shape=box];
 
         gliner -> canon [label="entities w/ confidence\n+ relations", color="#E65100", fontcolor="#E65100"];
@@ -57,26 +84,30 @@ digraph architecture {
     // ── Merge Table ──
     merge_table [label="Persistent Merge Table\n(Postgres: entity_alias)\n━━━━━━━━━━━━━━━━━━━━━\ntyped + untyped aliases\nO(1) lookup", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
 
-    // ── Article Dedup ──
-    article_db [label="Article Dedup\n(Postgres: scraped_article)\n━━━━━━━━━━━━━━━━━━━━━\nURL + title dedup", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    // ── Article Storage ──
+    article_db [label="Article Storage\n(Postgres: scraped_article)\n━━━━━━━━━━━━━━━━━━━━━\nURL dedup + full_text\nUsed by Chat Agent", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
 
     // ── Temporal Agent ──
-    temporal [label="Temporal Agent\n━━━━━━━━━━━━━━━━━\n• State tracking\n• Date attachment\n• current vs historical", fillcolor="#E8EAF6", color="#283593"];
+    temporal [label="Temporal Agent (stub)\n━━━━━━━━━━━━━━━━━\n• Logs temporal markers\n• Passthrough\n• State tracking planned", fillcolor="#E8EAF6", color="#283593"];
+
+    // ── Neo4j Save ──
+    neo4j_save [label="Batched Neo4j Writer\n━━━━━━━━━━━━━━━━━━━\n6 UNWIND queries per batch\nWeighted avg confidence\nevidence_count tracking", fillcolor="#FFCDD2", color="#C62828"];
 
     // ── Storage ──
     neo4j [label="Neo4j Graph DB\n━━━━━━━━━━━━━━━━━\nEntity, Event, Article\nnodes + RELATES_TO,\nINVOLVED_IN, EVIDENCES", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
 
     // ── API ──
     subgraph cluster_api {
-        label="  FastAPI Backend  ";
+        label="  FastAPI Backend (main.py)  ";
         labeljust=l;
         style=filled;
         fillcolor="#E0F7FA";
         color="#00838F";
         fontcolor="#006064";
 
-        api_graph [label="/api/graph\n━━━━━━━━━━━━\nGraph data for\nvisualization", fillcolor="#B2EBF2", color="#00838F", shape=box];
-        api_chat  [label="/api/chat\n━━━━━━━━━━━━\nConversational\nQ&A endpoint", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_graph [label="/api/graph\n━━━━━━━━━━━━\nServer-side filtering\nTop-N by degree\nBatched source queries", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_stats [label="/api/graph/stats\n━━━━━━━━━━━━\nAggregate counts\nBy entity type", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_chat  [label="/api/chat\n━━━━━━━━━━━━\nConversational Q&A\nRetry w/ backoff", fillcolor="#B2EBF2", color="#00838F", shape=box];
     }
 
     // ── Chat Agent (LangGraph) ──
@@ -89,15 +120,17 @@ digraph architecture {
         fontcolor="#BF360C";
 
         router [label="Router\n━━━━━━━━\nDirect / Graph?", fillcolor="#FFE0B2", color="#E65100", shape=diamond];
-        cypher_gen [label="Cypher Generator\n━━━━━━━━━━━━━━━━━\nNL → Cypher query\nSchema-aware prompts\nQuery templates", fillcolor="#FFE0B2", color="#E65100"];
+        cypher_gen [label="Cypher Generator\n━━━━━━━━━━━━━━━━━\nNL → Cypher query\nSchema-aware prompts\nStructured JSON output", fillcolor="#FFE0B2", color="#E65100"];
         cypher_exec [label="Cypher Executor\n━━━━━━━━━━━━━━━━━\nRun on Neo4j\nNeighborhood enrichment\nSafety guards", fillcolor="#FFE0B2", color="#E65100"];
-        synthesize [label="Synthesizer\n━━━━━━━━━━━━━\nGraph data → NL\nCitations + context", fillcolor="#FFE0B2", color="#E65100"];
+        fetch_articles [label="Fetch Articles\n━━━━━━━━━━━━━━━━━\nPostgres full_text\nMax 5 articles\n2000 chars each", fillcolor="#FFE0B2", color="#E65100"];
+        synthesize [label="Synthesizer\n━━━━━━━━━━━━━\nGraph + article data\n→ intelligence briefing", fillcolor="#FFE0B2", color="#E65100"];
         direct [label="Direct Answer\n━━━━━━━━━━━━━\nGreetings, meta\nquestions", fillcolor="#FFE0B2", color="#E65100"];
 
         router -> cypher_gen [label="graph", color="#E65100", fontcolor="#BF360C"];
         router -> direct [label="direct", color="#E65100", fontcolor="#BF360C"];
         cypher_gen -> cypher_exec [color="#E65100"];
-        cypher_exec -> synthesize [color="#E65100"];
+        cypher_exec -> fetch_articles [color="#E65100"];
+        fetch_articles -> synthesize [color="#E65100"];
     }
 
     // ── Frontend ──
@@ -109,14 +142,28 @@ digraph architecture {
         color="#37474F";
         fontcolor="#263238";
 
-        viz [label="Graph Visualization\n(vis-network.js)\n━━━━━━━━━━━━━━━━━━━\nInteractive node/edge view\nClick → sources + rels\nType-colored nodes", fillcolor="#CFD8DC", color="#37474F", shape=box];
+        viz [label="Graph Visualization\n(vis-network.js)\n━━━━━━━━━━━━━━━━━━━\nFilter toolbar\nSearch + type filter\nNode limit + min connections\nType-colored nodes", fillcolor="#CFD8DC", color="#37474F", shape=box];
         chat_ui [label="Chat Interface\n(/chat)\n━━━━━━━━━━━━━━━━\nConversational Q&A\nCypher display\nConversation history", fillcolor="#CFD8DC", color="#37474F", shape=box];
     }
 
+    // ── LLM Provider ──
+    groq [label="Groq API\n(openai/gpt-oss-20b)\n━━━━━━━━━━━━━━━━━━━\nStructured output\n(json_schema mode)\nRetry w/ backoff", fillcolor="#FFFDE7", color="#F57F17", shape=box3d];
+
+    // ════════════════════════════════
     // ── Edges ──
+    // ════════════════════════════════
+
+    // Producer flow
     rss -> scraper [label="URLs", color="#555555"];
-    scraper -> article_db [label="dedup check", color="#00695C", style=dashed, dir=both];
-    scraper -> gliner [label="list[Article]", color="#555555"];
+    scraper -> publisher [label="list[Article]", color="#2E7D32"];
+    publisher -> redis [label="SISMEMBER\n(dedup check)", color="#D32F2F", fontcolor="#D32F2F", style=dashed, dir=both];
+    publisher -> kafka [label="article JSON", color="#283593", fontcolor="#283593"];
+
+    // Consumer flow
+    kafka -> batch_acc [label="consume\n(batched)", color="#283593", fontcolor="#283593"];
+    batch_acc -> gliner [label="list[Article]", color="#555555"];
+
+    // Extraction → Resolution
     enrich -> tier1 [label="list[ArticleExtraction]", color="#555555"];
 
     // Resolution ↔ merge table
@@ -124,21 +171,27 @@ digraph architecture {
     tier2 -> merge_table [label="save\naliases", color="#00695C", fontcolor="#00695C", style=dashed, dir=both];
     tier3 -> merge_table [label="save\naliases", color="#00695C", fontcolor="#00695C", style=dashed];
 
+    // Resolution → Temporal → Save → Neo4j
     tier3 -> temporal [label="resolved extractions", color="#555555"];
-    temporal -> neo4j [label="write graph", color="#555555"];
-    neo4j -> api_graph [label="Cypher", color="#555555"];
+    temporal -> neo4j_save [label="extractions\n(passthrough)", color="#555555"];
+    neo4j_save -> neo4j [label="6 UNWIND\nqueries", color="#C62828", fontcolor="#C62828"];
+    neo4j_save -> article_db [label="save articles", color="#00695C", fontcolor="#00695C"];
+
+    // API ↔ Neo4j
+    neo4j -> api_graph [label="filtered\nsubgraph", color="#555555"];
+    neo4j -> api_stats [label="counts", color="#555555"];
     api_graph -> viz [color="#555555"];
+    api_stats -> viz [style=dashed, color="#555555"];
 
     // Chat flow
     api_chat -> router [label="question +\nhistory", color="#E65100", fontcolor="#BF360C"];
     cypher_exec -> neo4j [label="Cypher\nquery", color="#C62828", fontcolor="#C62828", style=dashed];
+    fetch_articles -> article_db [label="full_text\nlookup", color="#00695C", fontcolor="#00695C", style=dashed];
     synthesize -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed];
     direct -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed];
     api_chat -> chat_ui [color="#555555"];
 
-    // ── LLM Provider ──
-    groq [label="Groq API\n(openai/gpt-oss-20b)\n━━━━━━━━━━━━━━━━━━━\nStructured output\n(json_schema mode)", fillcolor="#FFFDE7", color="#F57F17", shape=box3d];
-
+    // LLM connections
     canon -> groq [style=dashed, color="#F57F17", dir=both];
     enrich -> groq [style=dashed, color="#F57F17", dir=both];
     tier3 -> groq [style=dashed, color="#F57F17", dir=both];
@@ -157,12 +210,14 @@ digraph architecture {
         node [shape=plaintext, fillcolor="#FAFAFA", fontsize=9];
         l1 [label="🟠  Extraction (per article)"];
         l2 [label="🟣  Resolution (cross-article)"];
-        l3 [label="🔵  Temporal + Inference"];
-        l4 [label="🟢  Scraper + Storage"];
-        l5 [label="🔴  Neo4j Graph DB"];
+        l3 [label="🔵  Temporal Agent (stub)"];
+        l4 [label="🟢  Scraper + Postgres"];
+        l5 [label="🔴  Neo4j Graph DB + Writer"];
         l6 [label="🟡  LLM Provider (Groq)"];
         l7 [label="🔷  Chat Agent (LangGraph)"];
+        l8 [label="🔶  Kafka Pipeline"];
+        l9 [label="🔺  Redis (URL dedup)"];
 
-        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 [style=invis];
+        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 -> l8 -> l9 [style=invis];
     }
 }

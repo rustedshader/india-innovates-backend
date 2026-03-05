@@ -25,6 +25,7 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import time
 from typing import Annotated, Literal, TypedDict
 
 from pydantic import BaseModel, Field
@@ -42,6 +43,21 @@ from models.database import SessionLocal
 from models.scraped_article import ScrapedArticle
 
 logger = logging.getLogger(__name__)
+
+
+def _llm_invoke_with_retry(llm, messages, max_retries: int = 3, base_delay: float = 2.0):
+    """Invoke an LLM with exponential backoff retry on transient errors."""
+    for attempt in range(max_retries):
+        try:
+            return llm.invoke(messages)
+        except Exception as e:
+            err_name = type(e).__name__
+            is_retryable = any(kw in err_name for kw in ["Connection", "Timeout", "RateLimit", "ServiceUnavailable"])
+            if not is_retryable or attempt == max_retries - 1:
+                raise
+            delay = base_delay * (2 ** attempt)
+            logger.warning(f"LLM call failed ({err_name}), retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+            time.sleep(delay)
 
 # ---------------------------------------------------------------------------
 # Neo4j schema description (injected into prompts so LLM knows the structure)
@@ -243,7 +259,7 @@ class GraphChatAgent:
             SystemMessage(content=ROUTER_SYSTEM),
             HumanMessage(content=state["question"]),
         ]
-        resp = self.llm.invoke(messages)
+        resp = _llm_invoke_with_retry(self.llm, messages)
         route = resp.content.strip().lower()
         if "graph" in route:
             state["route"] = "graph"
@@ -267,7 +283,7 @@ class GraphChatAgent:
         ]
 
         try:
-            resp = self.cypher_llm.invoke(messages)
+            resp = _llm_invoke_with_retry(self.cypher_llm, messages)
             data = self.cypher_parser.parse(resp.content)
             plan = CypherQueryPlan(**data)
         except Exception as e:
@@ -446,7 +462,7 @@ class GraphChatAgent:
             SystemMessage(content=SYNTHESIZE_SYSTEM),
             HumanMessage(content=user_content),
         ]
-        resp = self.llm.invoke(messages)
+        resp = _llm_invoke_with_retry(self.llm, messages)
         state["answer"] = resp.content
         return state
 
@@ -466,7 +482,7 @@ class GraphChatAgent:
         else:
             messages.append(HumanMessage(content=state["question"]))
 
-        resp = self.llm.invoke(messages)
+        resp = _llm_invoke_with_retry(self.llm, messages)
         state["answer"] = resp.content
         return state
 
