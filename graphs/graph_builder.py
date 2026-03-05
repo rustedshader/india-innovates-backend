@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from collections import defaultdict
 
 from neo4j import GraphDatabase
@@ -10,6 +11,31 @@ from scrapers.news_rss import Article, create_default_scraper
 from models.database import SessionLocal
 from models.scraped_article import ScrapedArticle
 from graphs.schemas import ArticleExtraction
+
+# Well-known acronyms that should stay uppercase
+_ACRONYMS = {
+    "us", "usa", "uk", "eu", "un", "nato", "who", "imf", "gdp", "uae",
+    "opec", "asean", "brics", "cia", "fbi", "nsa", "isro", "drdo", "ai",
+    "it", "bjp", "aap", "rbi", "sebi", "iit", "nit", "isi", "isis",
+    "nasa", "gst", "pm", "loc", "pla", "ccp", "prc", "dprk", "rok",
+}
+
+
+def _normalize_entity_name(name: str) -> str:
+    """Normalize entity name casing for consistent Neo4j MERGE.
+
+    - Title-cases each word
+    - Preserves known acronyms as uppercase
+    - Strips extra whitespace
+    """
+    name = re.sub(r"\s+", " ", name.strip())
+    words = []
+    for word in name.split():
+        if word.lower() in _ACRONYMS:
+            words.append(word.upper())
+        else:
+            words.append(word.title())
+    return " ".join(words)
 from agents.extraction import ExtractionAgent
 from agents.resolution import ResolutionAgent
 from agents.temporal import TemporalAgent
@@ -80,13 +106,14 @@ class GraphBuilder:
 
             for entity in extraction.entities:
                 entities_data.append({
-                    "name": entity.name, "type": entity.type,
+                    "name": _normalize_entity_name(entity.name), "type": entity.type,
                     "pub_date": article.pub_date, "url": article.url,
                 })
 
             for rel in extraction.relations:
                 relations_data.append({
-                    "source": rel.source, "target": rel.target,
+                    "source": _normalize_entity_name(rel.source),
+                    "target": _normalize_entity_name(rel.target),
                     "relation": rel.relation, "temporal": rel.temporal,
                     "confidence": rel.confidence, "causal": rel.causal,
                     "url": article.url,
@@ -99,7 +126,7 @@ class GraphBuilder:
                 })
                 for entity_name in event.entities:
                     event_entity_links.append({
-                        "entity": entity_name, "event": event.name,
+                        "entity": _normalize_entity_name(entity_name), "event": event.name,
                     })
                 event_article_links.append({
                     "url": article.url, "event": event.name,
