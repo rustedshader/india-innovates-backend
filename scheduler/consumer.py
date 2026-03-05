@@ -9,6 +9,7 @@ import logging
 import signal
 import time
 
+import redis
 from kafka import KafkaConsumer
 
 from config import (
@@ -16,9 +17,13 @@ from config import (
     KAFKA_TOPIC,
     KAFKA_BATCH_TIMEOUT_SECONDS,
     KAFKA_BATCH_MAX_SIZE,
+    REDIS_HOST,
+    REDIS_PORT,
 )
 from graphs.graph_builder import GraphBuilder
 from scrapers.news_rss import Article
+
+LIVE_FEED_CHANNEL = "india-innovates:live-feed"
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +82,7 @@ def main():
         session_timeout_ms=60000,  # 60s heartbeat timeout
     )
 
+    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
     logger.info("Initializing GraphBuilder (loading models)...")
     builder = GraphBuilder()
     logger.info("GraphBuilder ready.")
@@ -111,6 +117,22 @@ def main():
             try:
                 count = builder.process_articles(batch)
                 logger.info(f"Batch complete: {count} articles processed successfully")
+
+                # Publish live feed events for each article
+                for article in batch:
+                    try:
+                        event = json.dumps({
+                            "url": article.url,
+                            "title": article.title,
+                            "source": article.source,
+                            "thumbnail": article.top_image or "",
+                            "pub_date": article.pub_date or "",
+                            "status": "ingested",
+                            "timestamp": time.time(),
+                        })
+                        r.publish(LIVE_FEED_CHANNEL, event)
+                    except Exception as e:
+                        logger.debug(f"Failed to publish live feed event: {e}")
 
                 # Commit offsets after successful processing
                 consumer.commit()

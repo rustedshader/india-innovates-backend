@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from api.routes import graph, visualization, chat
+from api.routes import graph, visualization, chat, live_feed
 
 
 @asynccontextmanager
@@ -14,3 +14,5 @@ app = FastAPI(title="Intelligence Graph", lifespan=lifespan)
 app.include_router(graph.router)
 app.include_router(visualization.router)
 app.include_router(chat.router)
+app.include_router(live_feed.router)
+

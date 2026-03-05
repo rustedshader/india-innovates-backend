@@ -120,16 +120,16 @@ class NewsRSSScraper:
     """
 
     def __init__(self, request_timeout: int = 10, dedup_titles: bool = True):
-        self._feeds: dict[str, str] = {}  # source_name -> rss_url
+        self._feeds: list[tuple[str, str]] = []  # [(source_name, rss_url), ...]
         self._seen_urls: set[str] = set()
         self._seen_title_keys: set[str] = set()  # normalized title keys for cross-source dedup
         self._dedup_titles = dedup_titles
         self._request_timeout = request_timeout
 
     @property
-    def feeds(self) -> dict[str, str]:
+    def feeds(self) -> list[tuple[str, str]]:
         """Return registered feeds."""
-        return dict(self._feeds)
+        return list(self._feeds)
 
     @property
     def seen_urls(self) -> set[str]:
@@ -138,13 +138,13 @@ class NewsRSSScraper:
 
     def add_feed(self, source_name: str, rss_url: str) -> None:
         """Register an RSS feed source."""
-        self._feeds[source_name] = rss_url
+        self._feeds.append((source_name, rss_url))
         logger.info(f"Added feed: {source_name} -> {rss_url}")
 
     def remove_feed(self, source_name: str) -> None:
-        """Remove a registered RSS feed source."""
-        self._feeds.pop(source_name, None)
-        logger.info(f"Removed feed: {source_name}")
+        """Remove all feeds for a given source name."""
+        self._feeds = [(s, u) for s, u in self._feeds if s != source_name]
+        logger.info(f"Removed feeds for: {source_name}")
 
     def mark_seen(self, urls: set[str] | list[str]) -> None:
         """Mark URLs as already processed (won't be returned by fetch)."""
@@ -244,7 +244,7 @@ class NewsRSSScraper:
             max_per_feed: Max articles per feed (0 = unlimited)
         """
         all_articles = []
-        for source_name, rss_url in self._feeds.items():
+        for source_name, rss_url in self._feeds:
             articles = self.fetch_feed(source_name, rss_url, include_seen=include_seen, max_per_feed=max_per_feed)
             all_articles.extend(articles)
 
@@ -397,6 +397,19 @@ def create_default_scraper() -> NewsRSSScraper:
     scraper.add_feed("Economic Times", "https://b2b.economictimes.indiatimes.com/rss/recentstories")
     # Economic Times Defence
     scraper.add_feed("Economic Times", "https://b2b.economictimes.indiatimes.com/rss/defence")
+
+
+    scraper.add_feed("India TV", "https://www.indiatvnews.com/rssnews/topstory.xml")
+    scraper.add_feed("India TV", "https://www.indiatvnews.com/rssnews/topstory-politics.xml/")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-world.xml")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-entertainment.xml")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-sports.xml")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-technology.xml")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-health.xml")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-lifestyle.xml")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-business.xml")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-education.xml")
+    scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-crime.xml")
 
     return scraper
 
