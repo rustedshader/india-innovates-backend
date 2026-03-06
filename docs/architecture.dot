@@ -18,7 +18,7 @@ digraph architecture {
     }
 
     // ── Infrastructure ──
-    redis [label="Redis\n━━━━━━━━━━━━━━━━━\nSeen-URL set\n(cross-process dedup)\nSISMEMBER / SADD", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
+    redis [label="Redis\n━━━━━━━━━━━━━━━━━\nSeen-URL set\n(cross-process dedup)\nSISMEMBER / SADD\nLive-feed pub/sub", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
 
     kafka [label="Kafka Topic\n(india-innovates)\n━━━━━━━━━━━━━━━━━\nArticle JSON messages\nDecouples scraping\nfrom processing", fillcolor="#E8EAF6", color="#283593", shape=cylinder];
 
@@ -85,7 +85,13 @@ digraph architecture {
     merge_table [label="Persistent Merge Table\n(Postgres: entity_alias)\n━━━━━━━━━━━━━━━━━━━━━\ntyped + untyped aliases\nO(1) lookup", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
 
     // ── Article Storage ──
-    article_db [label="Article Storage\n(Postgres: scraped_article)\n━━━━━━━━━━━━━━━━━━━━━\nURL dedup + full_text\nUsed by Chat Agent", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    article_db [label="Article Storage\n(Postgres: scraped_article)\n━━━━━━━━━━━━━━━━━━━━━\nURL dedup + full_text\nUsed by Chat + Report Agents", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
+    // ── Weight Cache ──
+    weight_cache [label="Domain Weight Cache\n(Postgres)\n━━━━━━━━━━━━━━━━━━━━━\n1 row/domain/day\nLLM-generated weights\nEntity + relation scores", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
+    // ── Report Storage ──
+    report_db [label="Domain Reports\n(Postgres)\n━━━━━━━━━━━━━━━━━━━━━\nJSON report storage\nPer domain + date range", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
 
     // ── Temporal Agent ──
     temporal [label="Temporal Agent (stub)\n━━━━━━━━━━━━━━━━━\n• Logs temporal markers\n• Passthrough\n• State tracking planned", fillcolor="#E8EAF6", color="#283593"];
@@ -95,6 +101,37 @@ digraph architecture {
 
     // ── Storage ──
     neo4j [label="Neo4j Graph DB\n━━━━━━━━━━━━━━━━━\nEntity, Event, Article\nnodes + RELATES_TO,\nINVOLVED_IN, EVIDENCES", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
+
+    // ── Report Generation Pipeline ──
+    subgraph cluster_reports {
+        label="  Report Generation (scheduler/report_scheduler.py)  ";
+        labeljust=l;
+        style=filled;
+        fillcolor="#E8F5E9";
+        color="#2E7D32";
+        fontcolor="#1B5E20";
+
+        orchestrator [label="ReportOrchestrator\n━━━━━━━━━━━━━━━━━━\n4-agent pipeline\nPer domain, hourly\nGraceful degradation", fillcolor="#C8E6C9", color="#2E7D32"];
+
+        subgraph cluster_report_agents {
+            label="  Agents  ";
+            style=filled;
+            fillcolor="#DCEDC8";
+            color="#558B2F";
+            fontcolor="#33691E";
+
+            weight_gen [label="Stage 0: Dynamic Weights\n━━━━━━━━━━━━━━━━━━━━━━\n• Sample graph types\n• LLM scores relevance\n• Cached in Postgres (24h)\n• Cypher map lookups", fillcolor="#F1F8E9", color="#558B2F"];
+            report_agent [label="Step 1: ReportAgent\n━━━━━━━━━━━━━━━━━━━━\n• Scored entity query\n• Fetch articles\n• LLM: DomainBriefing", fillcolor="#F1F8E9", color="#558B2F"];
+            india_agent [label="Step 2: IndiaImpactAgent\n━━━━━━━━━━━━━━━━━━━━━━━\n• Graph traversal from India\n• Subgraph + article filter\n• LLM: strategic assessment", fillcolor="#F1F8E9", color="#558B2F"];
+            inference_agent [label="Step 3: InferenceAgent\n━━━━━━━━━━━━━━━━━━━━━━━\n• Causal chains (Cypher)\n• Impact propagation (BFS)\n• Weak links (bridges)\n• LLM: narratives", fillcolor="#F1F8E9", color="#558B2F"];
+
+            weight_gen -> report_agent [label="weights", color="#558B2F", fontcolor="#33691E"];
+            report_agent -> india_agent [label="ReportResult", color="#558B2F", fontcolor="#33691E"];
+            india_agent -> inference_agent [label="+ IndiaImpact", color="#558B2F", fontcolor="#33691E"];
+        }
+
+        orchestrator -> weight_gen [color="#2E7D32"];
+    }
 
     // ── API ──
     subgraph cluster_api {
@@ -108,6 +145,8 @@ digraph architecture {
         api_graph [label="/api/graph\n━━━━━━━━━━━━\nServer-side filtering\nTop-N by degree\nBatched source queries", fillcolor="#B2EBF2", color="#00838F", shape=box];
         api_stats [label="/api/graph/stats\n━━━━━━━━━━━━\nAggregate counts\nBy entity type", fillcolor="#B2EBF2", color="#00838F", shape=box];
         api_chat  [label="/api/chat\n━━━━━━━━━━━━\nConversational Q&A\nRetry w/ backoff", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_reports [label="/api/reports\n━━━━━━━━━━━━\nDomain briefings\n+ India impact\n+ inference", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_live [label="/api/live-feed\n━━━━━━━━━━━━\nSSE + WebSocket\nRedis pub/sub", fillcolor="#B2EBF2", color="#00838F", shape=box];
     }
 
     // ── Chat Agent (LangGraph) ──
@@ -177,11 +216,21 @@ digraph architecture {
     neo4j_save -> neo4j [label="6 UNWIND\nqueries", color="#C62828", fontcolor="#C62828"];
     neo4j_save -> article_db [label="save articles", color="#00695C", fontcolor="#00695C"];
 
+    // Report pipeline ↔ data stores
+    report_agent -> neo4j [label="scored\nCypher query", color="#C62828", fontcolor="#C62828", style=dashed];
+    report_agent -> article_db [label="fetch\narticles", color="#00695C", fontcolor="#00695C", style=dashed];
+    weight_gen -> weight_cache [label="cache/read\nweights", color="#00695C", fontcolor="#00695C", style=dashed, dir=both];
+    india_agent -> neo4j [label="India\ntraversal", color="#C62828", fontcolor="#C62828", style=dashed];
+    inference_agent -> neo4j [label="chain/impact\nqueries", color="#C62828", fontcolor="#C62828", style=dashed];
+    inference_agent -> report_db [label="merged\nreport", color="#00695C", fontcolor="#00695C", style=dashed];
+
     // API ↔ Neo4j
     neo4j -> api_graph [label="filtered\nsubgraph", color="#555555"];
     neo4j -> api_stats [label="counts", color="#555555"];
     api_graph -> viz [color="#555555"];
     api_stats -> viz [style=dashed, color="#555555"];
+    api_reports -> report_db [label="fetch\nreports", color="#00695C", fontcolor="#00695C", style=dashed];
+    api_live -> redis [label="pub/sub", color="#D32F2F", fontcolor="#D32F2F", style=dashed];
 
     // Chat flow
     api_chat -> router [label="question +\nhistory", color="#E65100", fontcolor="#BF360C"];
@@ -198,6 +247,10 @@ digraph architecture {
     cypher_gen -> groq [style=dashed, color="#F57F17", dir=both];
     synthesize -> groq [style=dashed, color="#F57F17", dir=both];
     router -> groq [style=dashed, color="#F57F17", dir=both];
+    weight_gen -> groq [style=dashed, color="#F57F17", dir=both];
+    report_agent -> groq [style=dashed, color="#F57F17", dir=both];
+    india_agent -> groq [style=dashed, color="#F57F17", dir=both];
+    inference_agent -> groq [style=dashed, color="#F57F17", dir=both];
 
     // ── Legend ──
     subgraph cluster_legend {
@@ -208,16 +261,17 @@ digraph architecture {
         fontsize=10;
 
         node [shape=plaintext, fillcolor="#FAFAFA", fontsize=9];
-        l1 [label="🟠  Extraction (per article)"];
-        l2 [label="🟣  Resolution (cross-article)"];
-        l3 [label="🔵  Temporal Agent (stub)"];
-        l4 [label="🟢  Scraper + Postgres"];
-        l5 [label="🔴  Neo4j Graph DB + Writer"];
-        l6 [label="🟡  LLM Provider (Groq)"];
-        l7 [label="🔷  Chat Agent (LangGraph)"];
-        l8 [label="🔶  Kafka Pipeline"];
-        l9 [label="🔺  Redis (URL dedup)"];
+        l1  [label="🟠  Extraction (per article)"];
+        l2  [label="🟣  Resolution (cross-article)"];
+        l3  [label="🔵  Temporal Agent (stub)"];
+        l4  [label="🟢  Report Pipeline (4 agents)"];
+        l5  [label="🔴  Neo4j Graph DB + Writer"];
+        l6  [label="🟡  LLM Provider (Groq)"];
+        l7  [label="🔷  Chat Agent (LangGraph)"];
+        l8  [label="🔶  Kafka Pipeline"];
+        l9  [label="🔺  Redis (dedup + pub/sub)"];
+        l10 [label="🟩  Postgres (articles, weights, reports)"];
 
-        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 -> l8 -> l9 [style=invis];
+        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 -> l8 -> l9 -> l10 [style=invis];
     }
 }

@@ -3,6 +3,11 @@
 Pulls structured data from Neo4j (entities, relations, events) and article
 full-text from Postgres, then synthesizes a domain-specific intelligence
 briefing via Groq LLM.
+
+Domain filtering uses LLM-generated weights that are cached daily in Postgres.
+The LLM scores entity types and relation types for domain relevance based on
+a sample of what the knowledge graph actually contains — weights drift with
+the data rather than relying on static config.
 """
 
 from __future__ import annotations
@@ -23,17 +28,14 @@ from sqlalchemy import select
 from config import NEO4J_URI, NEO4J_AUTH
 from models.database import SessionLocal
 from models.scraped_article import ScrapedArticle
+from models.domain_weight_cache import DomainWeightCache
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Domain → Entity type mapping (derived from Neo4j entity schema)
+# Static fallback: used only when LLM weight generation fails
 # ---------------------------------------------------------------------------
-
-# Entity types in the graph: Person, Organization, Country, Location,
-# Policy, Technology, Economic_Indicator, Military_Asset, Resource
-# Each domain maps to the entity types most relevant to it.
 
 DOMAIN_CONFIG: dict[str, list[str]] = {
     "climate":     ["Resource", "Technology", "Policy", "Organization"],
@@ -42,6 +44,20 @@ DOMAIN_CONFIG: dict[str, list[str]] = {
     "geopolitics": ["Country", "Person", "Organization"],
     "society":     ["Person", "Organization", "Location"],
 }
+
+
+# ---------------------------------------------------------------------------
+# Domain weights model (LLM structured output)
+# ---------------------------------------------------------------------------
+
+class DomainWeights(BaseModel):
+    """LLM-generated relevance weights for a specific domain."""
+    entity_weights: dict[str, float] = Field(
+        description="Entity type → relevance score (0.0 = irrelevant, 1.0 = core to this domain)"
+    )
+    relation_weights: dict[str, float] = Field(
+        description="Relation type → relevance score (0.0 = irrelevant, 1.0 = core to this domain)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -137,10 +153,18 @@ def _llm_invoke_with_retry(llm, messages, max_retries: int = 3, base_delay: floa
 # ---------------------------------------------------------------------------
 
 class ReportAgent:
-    """Generates domain-specific intelligence briefings."""
+    """Generates domain-specific intelligence briefings.
+
+    Uses LLM-generated domain weights (cached daily in Postgres) to score
+    entities and relations for domain relevance. All scoring happens in
+    Cypher via map parameter lookups — no data pulled to Python for filtering.
+    """
 
     def __init__(self, model: str = "openai/gpt-oss-20b"):
         self.llm = ChatGroq(model_name=model, temperature=0.3, max_tokens=4096)
+        self.weight_llm = ChatGroq(
+            model_name=model, temperature=0.1, max_tokens=1024,
+        ).with_structured_output(DomainWeights, method="json_schema")
         self.driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
         self.parser = JsonOutputParser(pydantic_object=DomainBriefing)
         logger.info("ReportAgent initialized")
@@ -148,29 +172,158 @@ class ReportAgent:
     def close(self):
         self.driver.close()
 
+    # ── Stage 0: Dynamic Domain Weights ─────────────────────────────────────
+
+    def _sample_graph_types(self, date_cutoff: str) -> dict:
+        """Sample entity types and relation types from recent graph data."""
+        with self.driver.session() as session:
+            entity_result = session.run(f"""
+                MATCH (e:Entity)<-[:EVIDENCES]-(a:Article)
+                WHERE a.pub_date IS NOT NULL AND a.pub_date <> ''
+                  AND ({_PARSE_DATE}) >= $date_cutoff
+                WITH e.type AS etype, count(DISTINCT e) AS cnt,
+                     collect(DISTINCT e.name)[0..5] AS samples
+                ORDER BY cnt DESC
+                RETURN collect({{type: etype, count: cnt, samples: samples}}) AS entity_types
+            """, date_cutoff=date_cutoff).single()
+
+            rel_result = session.run("""
+                MATCH ()-[r:RELATES_TO]->()
+                WITH r.type AS rtype, count(r) AS cnt
+                ORDER BY cnt DESC LIMIT 25
+                RETURN collect({type: rtype, count: cnt}) AS relation_types
+            """).single()
+
+        return {
+            "entity_types": entity_result["entity_types"] if entity_result else [],
+            "relation_types": rel_result["relation_types"] if rel_result else [],
+        }
+
+    def _get_domain_weights(self, domain: str, date_cutoff: str) -> dict:
+        """Get domain relevance weights — cached per domain per day in Postgres.
+
+        Flow: Postgres cache → LLM structured output → static DOMAIN_CONFIG fallback.
+        """
+        ist = timezone(timedelta(hours=5, minutes=30))
+        today = datetime.now(ist).strftime("%Y-%m-%d")
+
+        # 1. Check Postgres cache
+        db = SessionLocal()
+        try:
+            cached = db.execute(
+                select(DomainWeightCache).where(
+                    DomainWeightCache.domain == domain,
+                    DomainWeightCache.cache_date == today,
+                )
+            ).scalar_one_or_none()
+
+            if cached:
+                logger.info(f"  Domain weights cache HIT for {domain} ({today})")
+                return {
+                    "entity_weights": json.loads(cached.entity_weights),
+                    "relation_weights": json.loads(cached.relation_weights),
+                }
+        except Exception as e:
+            logger.warning(f"Cache lookup failed: {e}")
+        finally:
+            db.close()
+
+        # 2. Sample graph + LLM generation
+        logger.info(f"  Domain weights cache MISS for {domain} — generating via LLM")
+        try:
+            graph_sample = self._sample_graph_types(date_cutoff)
+
+            prompt = f"""You are a domain classifier for a geopolitical intelligence system.
+Given the domain "{domain.upper()}" and the entity types and relation types
+currently in the knowledge graph, score each for relevance to this domain.
+
+ENTITY TYPES (with counts and example entities from the graph):
+{json.dumps(graph_sample['entity_types'], indent=2)}
+
+RELATION TYPES (with counts):
+{json.dumps(graph_sample['relation_types'], indent=2)}
+
+Score each type from 0.0 (completely irrelevant to {domain}) to 1.0 (core to {domain}).
+You MUST include ALL types listed above in your output.
+
+Examples for the "{domain}" domain:
+- For climate: Resource=1.0, disrupts=0.9, attacks=0.0, Military_Asset=0.1
+- For defence: Military_Asset=1.0, attacks=1.0, Economic_Indicator=0.1
+- For economics: Economic_Indicator=1.0, trades_with=0.9, deployed_to=0.0"""
+
+            weights_obj: DomainWeights = self.weight_llm.invoke(prompt)
+            weights = {
+                "entity_weights": weights_obj.entity_weights,
+                "relation_weights": weights_obj.relation_weights,
+            }
+
+            # 3. Persist to Postgres
+            db = SessionLocal()
+            try:
+                entry = DomainWeightCache(
+                    domain=domain,
+                    cache_date=today,
+                    entity_weights=json.dumps(weights["entity_weights"]),
+                    relation_weights=json.dumps(weights["relation_weights"]),
+                )
+                db.merge(entry)
+                db.commit()
+                logger.info(f"  Cached {domain} weights for {today}")
+            except Exception as e:
+                db.rollback()
+                logger.warning(f"Failed to cache weights: {e}")
+            finally:
+                db.close()
+
+            return weights
+
+        except Exception as e:
+            logger.error(f"LLM weight generation failed for {domain}: {e}")
+
+        # 4. Static fallback
+        logger.warning(f"  Falling back to static DOMAIN_CONFIG for {domain}")
+        entity_types = DOMAIN_CONFIG.get(domain, [])
+        return {
+            "entity_weights": {t: 1.0 for t in entity_types},
+            "relation_weights": {},  # no relation filtering in fallback
+        }
+
     # ── Stage 1: Graph Collection ──────────────────────────────────────────
 
     def _collect_graph_data(self, domain: str, date_cutoff: str) -> dict:
-        """Query Neo4j for domain-relevant entities, relations, and events."""
-        entity_types = DOMAIN_CONFIG[domain]
+        """Query Neo4j for domain-relevant entities scored by LLM-generated weights.
+
+        Scoring happens entirely in Cypher via map parameter lookups:
+        score = type_weight × 0.4 + avg(rel_weight) × 0.6
+        """
+        weights = self._get_domain_weights(domain, date_cutoff)
+        type_weights = weights["entity_weights"]
+        rel_weights = weights["relation_weights"]
 
         with self.driver.session() as session:
-            # Query 1: Top entities by degree, filtered by domain entity types + date
+            # Query 1: Scored entities — map lookups in Cypher, no Python filtering
             entities_result = session.run(f"""
                 MATCH (e:Entity)<-[:EVIDENCES]-(a:Article)
-                WHERE e.type IN $entity_types
-                  AND a.pub_date IS NOT NULL AND a.pub_date <> ''
+                WHERE a.pub_date IS NOT NULL AND a.pub_date <> ''
                   AND ({_PARSE_DATE}) >= $date_cutoff
-                WITH e, count(DISTINCT a) AS article_count
+                  AND COALESCE($type_weights[e.type], 0.0) > 0.0
+                WITH e, count(DISTINCT a) AS article_count,
+                     $type_weights[e.type] AS type_score
                 OPTIONAL MATCH (e)-[r:RELATES_TO]-()
-                WITH e, article_count, count(r) AS degree
-                ORDER BY degree DESC
+                WITH e, article_count, type_score,
+                     avg(COALESCE($rel_weights[r.type], 0.1)) AS rel_score,
+                     count(r) AS degree
+                WITH e, article_count, degree,
+                     (type_score * 0.4 + rel_score * 0.6) AS domain_score
+                ORDER BY domain_score * log(degree + 1) DESC
                 LIMIT 30
                 RETURN collect({{
                     name: e.name, type: e.type,
-                    degree: degree, article_count: article_count
+                    degree: degree, article_count: article_count,
+                    domain_score: domain_score
                 }}) AS entities
-            """, entity_types=entity_types, date_cutoff=date_cutoff).single()
+            """, type_weights=type_weights, rel_weights=rel_weights,
+                 date_cutoff=date_cutoff).single()
 
             entities = entities_result["entities"] if entities_result else []
             entity_names = [e["name"] for e in entities]

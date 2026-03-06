@@ -316,15 +316,6 @@ Filter toolbar with: search box, entity type dropdown, node limit slider (20–5
 
 ---
 
-## Future: Inference Agent (Post-batch)
-
-Runs after each batch on the updated graph.
-
-1. **Path Discovery**: Multi-hop chains across domains
-   - `(Drought in Taiwan) →[disrupts]→ (TSMC) →[supplies_chips_to]→ (Lockheed Martin) →[builds]→ (F-35)`
-2. **Impact Propagation**: New event → traverse graph → find downstream affected entities
-3. **Weak Link Detection**: High-centrality bridging nodes between domain subgraphs
-
 ---
 
 ## Stage 6: Multi-Agent Report Generation with India Impact Analysis
@@ -335,7 +326,8 @@ Runs after each batch on the updated graph.
 ReportOrchestrator.generate(domain, date_range)
     │
     ├── Step 1: ReportAgent.generate_with_context()
-    │       ├── _collect_graph_data()   → Neo4j: domain entities, relations, events
+    │       ├── _get_domain_weights()   → Postgres cache / LLM / static fallback (Stage 8)
+    │       ├── _collect_graph_data()   → Neo4j: scored domain entities, relations, events
     │       ├── _fetch_articles()       → Postgres: article full-text
     │       └── _synthesize()           → LLM: DomainBriefing
     │       → ReportResult(briefing, graph_data, articles)
@@ -347,7 +339,14 @@ ReportOrchestrator.generate(domain, date_range)
     │       └── _build_compact_prompt()       → Token-budgeted LLM call (~3700 tokens)
     │       → IndiaImpactAnalysis
     │
-    └── Step 3: Merge briefing + india_impact → enriched report
+    ├── Step 3: InferenceAgent.analyze()
+    │       ├── _discover_causal_chains()     → Cypher: RELATES_TO*2..5, causal scoring
+    │       ├── _propagate_impact()           → Cypher: BFS from events, 3 hops
+    │       ├── _detect_weak_links()          → Cypher: bridge entities across domains
+    │       └── _synthesize_narrative()       → LLM: analyst-readable narratives
+    │       → InferenceAnalysis
+    │
+    └── Step 4: Merge briefing + india_impact + inference → enriched report
 ```
 
 ### Key Design Decisions
@@ -377,14 +376,78 @@ ReportOrchestrator.generate(domain, date_range)
 
 ---
 
-## Future: Inference Agent (Post-batch)
+## Stage 7: Inference Agent — Cross-Domain Chain Discovery
 
-Runs after each batch on the updated graph.
+The system's core differentiator: discovers hidden multi-hop causal chains,
+propagates impact from events, and identifies critical weak links.
 
-1. **Path Discovery**: Multi-hop chains across domains
-   - `(Drought in Taiwan) →[disrupts]→ (TSMC) →[supplies_chips_to]→ (Lockheed Martin) →[builds]→ (F-35)`
-2. **Impact Propagation**: New event → traverse graph → find downstream affected entities
-3. **Weak Link Detection**: High-centrality bridging nodes between domain subgraphs
+### Design: Graph-first, LLM-last
+
+Steps 1-3 are pure Cypher — fast, deterministic, provenance-tracked.
+The LLM only enters at Step 4 to narrate the structured graph results.
+
+```
+InferenceAgent.analyze(report_result)
+    ├── Step 1: Causal Chain Discovery (Cypher)
+    │     RELATES_TO*2..5 traversal, causal=true filter, cross-domain scoring
+    │     Score: Π(confidence) × log(evidence) × type_diversity
+    │     → Top 5 chains: (Drought → TSMC → Lockheed → F-35)
+    │
+    ├── Step 2: Impact Propagation (Cypher)
+    │     Recent Events → BFS through RELATES_TO*1..3
+    │     → Per-event impact map with hop distances
+    │
+    ├── Step 3: Weak Link Detection (Cypher)
+    │     Bridge entities connecting 2+ domain clusters
+    │     with few connections (fragile single points of failure)
+    │
+    └── Step 4: LLM Narrative Synthesis (single call, ~3500 tokens)
+          → Analyst-readable narratives per chain, impact, and weak link
+```
+
+### InferenceAnalysis Output
+
+| Section              | Description                                         |
+|----------------------|-----------------------------------------------------|
+| executive_summary    | 2-3 paragraph overview of key inferences            |
+| causal_chains        | Multi-hop chains with scores, narratives, sources   |
+| impact_propagations  | Event → downstream entity cascades with hop distance|
+| weak_links           | Bridge entities, domains bridged, risk narratives   |
+
+### Full Orchestrator Pipeline (4 agents)
+
+```
+ReportOrchestrator.generate(domain, date_range)
+    ├── Step 1: ReportAgent          → domain briefing
+    ├── Step 2: IndiaImpactAgent     → India strategic analysis
+    ├── Step 3: InferenceAgent       → causal chains, impact, weak links
+    └── Step 4: Merge all → enriched report
+```
+
+---
+
+## Stage 8: Dynamic Domain Weights — LLM-Driven Relevance Scoring
+
+Replaces static `DOMAIN_CONFIG` entity-type filtering with adaptive, LLM-generated
+weights that drift to match what the knowledge graph actually contains.
+
+### Architecture
+
+```
+_collect_graph_data(domain, cutoff)
+    ├── Check Postgres cache (domain_weight_cache table)
+    │     HIT → use cached weights
+    │     MISS ↓
+    ├── Sample entity/relation types from Neo4j (~50ms)
+    ├── LLM scores each type for domain relevance (structured output)
+    ├── Cache to Postgres (1 row per domain per day)
+    └── Cypher scored query: $type_weights[e.type] × 0.4 + avg($rel_weights[r.type]) × 0.6
+```
+
+**Key**: All scoring happens in Cypher via native map parameter lookups.
+No data pulled to Python for filtering.
+
+**Fallback chain**: `Postgres cache → LLM structured output → static DOMAIN_CONFIG`
 
 ---
 
@@ -401,8 +464,9 @@ Runs after each batch on the updated graph.
 | 6     | Kafka pipeline (producer + consumer)             | ✅ Done      |
 | 7     | Graph visualization scaling (server-side filter) | ✅ Done      |
 | 8     | Temporal Agent with state tracking               | Stub        |
-| 9     | Inference Agent for cross-domain chains          | Planned     |
+| 9     | Inference Agent — cross-domain chain discovery   | ✅ Done      |
 | 10    | Multi-agent report generation + India impact     | ✅ Done      |
+| 11    | Dynamic domain weights (LLM-driven scoring)      | ✅ Done      |
 
 ---
 
@@ -448,9 +512,10 @@ agents/
     resolution.py           # Stage 2: 3-tier entity resolution funnel
     temporal.py             # Stage 3: Temporal state tracking
     chat.py                 # Stage 4: LangGraph chat agent (Graph RAG + article fetching)
-    report.py               # Stage 6: Domain briefing agent + ReportResult dataclass
+    report.py               # Stage 6+8: Domain briefing agent + dynamic domain weights
     india_impact.py         # Stage 6: India strategic impact analysis agent
-    report_orchestrator.py  # Stage 6: Multi-agent orchestrator (ReportAgent + IndiaImpactAgent)
+    report_orchestrator.py  # Stage 6: Multi-agent orchestrator (4-agent pipeline)
+    inference.py            # Stage 7: Causal chain discovery, impact propagation, weak links
 graphs/
     schemas.py              # Pydantic models for all stages
     prompts.py              # LLM prompt templates
@@ -465,6 +530,7 @@ api/
         graph.py            # /api/graph endpoint
         chat.py             # /api/chat endpoint (conversational Q&A)
         reports.py          # /api/reports endpoint (domain reports + India impact)
+        live_feed.py        # /api/live-feed endpoint (SSE + WebSocket)
         visualization.py    # / graph viz + /chat chat UI
 scrapers/
     news_rss.py             # RSS scraper (title dedup, max_per_feed)
@@ -473,9 +539,12 @@ models/
     scraped_article.py      # Article dedup table
     entity_alias.py         # Persistent merge table
     domain_report.py        # Generated report storage
+    domain_weight_cache.py  # Stage 8: Daily cached LLM-generated domain weights
 docs/
     plan.md                 # This file
     architecture.dot        # Graphviz source → .png/.svg
+alembic/                    # Database migrations
+alembic.ini
 config.py                   # All config: DB, Neo4j, Redis, Kafka, scrape intervals
 main.py
 ```
