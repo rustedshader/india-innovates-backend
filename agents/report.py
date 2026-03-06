@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -73,6 +74,22 @@ class DomainBriefing(BaseModel):
     key_actors: list[KeyActor] = Field(description="Top 5-10 key actors in this domain")
     critical_relationships: list[CriticalRelationship] = Field(description="5-8 important relationships")
     trends: str = Field(description="2-3 paragraph analysis of trends and outlook")
+
+
+# ---------------------------------------------------------------------------
+# Structured result for multi-agent orchestration
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ReportResult:
+    """Structured output from ReportAgent.generate_with_context().
+
+    Cleanly separates the final briefing from intermediate data that
+    downstream agents (e.g. IndiaImpactAgent) may need.
+    """
+    briefing: dict                          # DomainBriefing output dict
+    graph_data: dict                        # Raw graph data (entities, relations, events)
+    articles: list = field(default_factory=list)  # Fetched article excerpts
 
 
 # ---------------------------------------------------------------------------
@@ -314,17 +331,13 @@ IMPORTANT:
 
         return report
 
-    # ── Main entry point ───────────────────────────────────────────────────
+    # ── Main entry points ──────────────────────────────────────────────────
 
-    def generate(self, domain: str, date_range: str = "7d") -> dict:
-        """Generate a full domain briefing.
+    def generate_with_context(self, domain: str, date_range: str = "7d") -> "ReportResult":
+        """Generate a domain briefing and return structured result with context.
 
-        Args:
-            domain: One of climate, defence, economics, geopolitics, society
-            date_range: "7d", "30d", etc.
-
-        Returns:
-            Structured report dict matching DomainBriefing schema.
+        Returns a ReportResult dataclass so the orchestrator can access
+        graph_data and articles without polluting the briefing dict.
         """
         if domain not in DOMAIN_CONFIG:
             raise ValueError(f"Unknown domain: {domain}. Must be one of {list(DOMAIN_CONFIG.keys())}")
@@ -348,7 +361,7 @@ IMPORTANT:
 
         if not graph_data["entities"]:
             logger.warning(f"No graph data found for domain={domain}, skipping synthesis")
-            return {
+            empty_briefing = {
                 "domain": domain,
                 "date_range": date_range,
                 "generated_at": datetime.now(ist).isoformat(),
@@ -359,6 +372,7 @@ IMPORTANT:
                 "trends": "Insufficient data for trend analysis.",
                 "sources": [],
             }
+            return ReportResult(briefing=empty_briefing, graph_data=graph_data, articles=[])
 
         # Stage 2: Fetch articles
         articles = self._fetch_articles(graph_data["article_urls"])
@@ -377,4 +391,16 @@ IMPORTANT:
             for a in articles
         ]
 
-        return report
+        return ReportResult(briefing=report, graph_data=graph_data, articles=articles)
+
+    def generate(self, domain: str, date_range: str = "7d") -> dict:
+        """Generate a full domain briefing.
+
+        Args:
+            domain: One of climate, defence, economics, geopolitics, society
+            date_range: "7d", "30d", etc.
+
+        Returns:
+            Structured report dict matching DomainBriefing schema.
+        """
+        return self.generate_with_context(domain, date_range).briefing

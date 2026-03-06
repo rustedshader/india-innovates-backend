@@ -10,7 +10,8 @@ import signal
 import time
 
 from config import REDIS_HOST, REDIS_PORT, REPORT_INTERVAL_SECONDS, REPORT_DATE_RANGE
-from agents.report import ReportAgent, DOMAIN_CONFIG
+from agents.report_orchestrator import ReportOrchestrator
+from agents.report import DOMAIN_CONFIG
 from models.database import Base, engine, SessionLocal
 from models.domain_report import DomainReport
 
@@ -83,8 +84,8 @@ def main():
     logger.info("Database tables ensured.")
 
     # Initialize agent (loads LLM config)
-    agent = ReportAgent()
-    logger.info("ReportAgent initialized.")
+    agent = ReportOrchestrator()
+    logger.info("ReportOrchestrator initialized.")
 
     try:
         while not _shutdown:

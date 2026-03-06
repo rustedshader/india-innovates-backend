@@ -327,12 +327,64 @@ Runs after each batch on the updated graph.
 
 ---
 
-## Future: Strategic Report Generation
+## Stage 6: Multi-Agent Report Generation with India Impact Analysis
 
-1. Query: "Strategic assessment of semiconductor supply chains"
-2. Graph traversal: Pull subgraph around target entities (2-3 hops)
-3. Temporal filter: Only current states
-4. LLM synthesis: Structured report with situation, key actors, risks, causal chains, monitoring targets
+### Architecture (Multi-Agent Pipeline)
+
+```
+ReportOrchestrator.generate(domain, date_range)
+    │
+    ├── Step 1: ReportAgent.generate_with_context()
+    │       ├── _collect_graph_data()   → Neo4j: domain entities, relations, events
+    │       ├── _fetch_articles()       → Postgres: article full-text
+    │       └── _synthesize()           → LLM: DomainBriefing
+    │       → ReportResult(briefing, graph_data, articles)
+    │
+    ├── Step 2: IndiaImpactAgent.analyze()
+    │       ├── _discover_india_entities()    → Neo4j traversal from India + seed set
+    │       ├── _extract_india_subgraph()     → Filter graph data for India connections
+    │       ├── _filter_india_articles()      → Filter articles by graph-discovered entities
+    │       └── _build_compact_prompt()       → Token-budgeted LLM call (~3700 tokens)
+    │       → IndiaImpactAnalysis
+    │
+    └── Step 3: Merge briefing + india_impact → enriched report
+```
+
+### Key Design Decisions
+
+1. **ReportResult dataclass**: Clean separation between briefing output and intermediate
+   data (graph_data, articles). No dict pollution.
+
+2. **Graph-driven entity discovery**: India-connected entities found via Neo4j traversal
+   (1-2 hops from India through RELATES_TO/PART_OF) + static seed set of well-known
+   Indian entities. This catches metonyms (New Delhi, Modi, ISRO) without keyword grep.
+
+3. **Context window safety**: IndiaImpactAgent receives a compact prompt with strict
+   token budgets — briefing summary only, development titles as bullets, India subgraph
+   (max 20 relations), and 5 India-relevant article excerpts (1500 chars each).
+
+### IndiaImpactAnalysis Output
+
+| Section                | Description                                        |
+|------------------------|----------------------------------------------------|
+| executive_summary      | 2-3 paragraph India-focused overview               |
+| strategic_assessment   | Summary + implications for India                   |
+| transparency_insights  | Governance and accountability observations         |
+| national_advantages    | Opportunities India can leverage                   |
+| risks                  | Threats to Indian interests with severity/mitigation|
+| global_positioning     | India's position vs competitors, trajectory        |
+| recommendations        | Actionable policy/strategy recommendations         |
+
+---
+
+## Future: Inference Agent (Post-batch)
+
+Runs after each batch on the updated graph.
+
+1. **Path Discovery**: Multi-hop chains across domains
+   - `(Drought in Taiwan) →[disrupts]→ (TSMC) →[supplies_chips_to]→ (Lockheed Martin) →[builds]→ (F-35)`
+2. **Impact Propagation**: New event → traverse graph → find downstream affected entities
+3. **Weak Link Detection**: High-centrality bridging nodes between domain subgraphs
 
 ---
 
@@ -350,7 +402,7 @@ Runs after each batch on the updated graph.
 | 7     | Graph visualization scaling (server-side filter) | ✅ Done      |
 | 8     | Temporal Agent with state tracking               | Stub        |
 | 9     | Inference Agent for cross-domain chains          | Planned     |
-| 10    | Strategic report generation endpoint             | Planned     |
+| 10    | Multi-agent report generation + India impact     | ✅ Done      |
 
 ---
 
@@ -367,6 +419,9 @@ python -m scheduler.producer
 
 # Terminal 3: Kafka consumer (processes batches)
 python -m scheduler.consumer
+
+# Terminal 4: Report scheduler (generates reports every hour)
+python -m scheduler.report_scheduler
 ```
 
 ### Configuration (config.py / environment variables)
@@ -380,6 +435,8 @@ python -m scheduler.consumer
 | `KAFKA_BATCH_MAX_SIZE`       | `50`              | Max articles per consumer batch          |
 | `REDIS_HOST`                 | `localhost`       | Redis host for URL dedup set             |
 | `REDIS_PORT`                 | `6379`            | Redis port                               |
+| `REPORT_INTERVAL_SECONDS`    | `3600` (1hr)      | How often reports are regenerated        |
+| `REPORT_DATE_RANGE`          | `7d`              | Date window for report data              |
 
 ---
 
@@ -387,33 +444,40 @@ python -m scheduler.consumer
 
 ```
 agents/
-    extraction.py       # Stage 1: Per-article entity/relation extraction
-    resolution.py       # Stage 2: 3-tier entity resolution funnel
-    temporal.py         # Stage 3: Temporal state tracking
-    chat.py             # Stage 4: LangGraph chat agent (Graph RAG + article fetching)
+    extraction.py           # Stage 1: Per-article entity/relation extraction
+    resolution.py           # Stage 2: 3-tier entity resolution funnel
+    temporal.py             # Stage 3: Temporal state tracking
+    chat.py                 # Stage 4: LangGraph chat agent (Graph RAG + article fetching)
+    report.py               # Stage 6: Domain briefing agent + ReportResult dataclass
+    india_impact.py         # Stage 6: India strategic impact analysis agent
+    report_orchestrator.py  # Stage 6: Multi-agent orchestrator (ReportAgent + IndiaImpactAgent)
 graphs/
-    schemas.py          # Pydantic models for all stages
-    prompts.py          # LLM prompt templates
-    graph_builder.py    # Orchestrates pipeline (process_articles), saves to Neo4j
+    schemas.py              # Pydantic models for all stages
+    prompts.py              # LLM prompt templates
+    graph_builder.py        # Orchestrates pipeline (process_articles), saves to Neo4j
 scheduler/
-    producer.py         # Kafka producer: periodic RSS scraping → publish
-    consumer.py         # Kafka consumer: batch consume → process_articles pipeline
+    producer.py             # Kafka producer: periodic RSS scraping → publish
+    consumer.py             # Kafka consumer: batch consume → process_articles pipeline
+    report_scheduler.py     # Report scheduler: periodic multi-agent report generation
 api/
-    __init__.py         # FastAPI app
+    __init__.py             # FastAPI app
     routes/
-        graph.py        # /api/graph endpoint
-        chat.py         # /api/chat endpoint (conversational Q&A)
-        visualization.py # / graph viz + /chat chat UI
+        graph.py            # /api/graph endpoint
+        chat.py             # /api/chat endpoint (conversational Q&A)
+        reports.py          # /api/reports endpoint (domain reports + India impact)
+        visualization.py    # / graph viz + /chat chat UI
 scrapers/
-    news_rss.py         # RSS scraper (title dedup, max_per_feed)
+    news_rss.py             # RSS scraper (title dedup, max_per_feed)
 models/
-    database.py         # SQLAlchemy engine
-    scraped_article.py  # Article dedup table
-    entity_alias.py     # Persistent merge table
+    database.py             # SQLAlchemy engine
+    scraped_article.py      # Article dedup table
+    entity_alias.py         # Persistent merge table
+    domain_report.py        # Generated report storage
 docs/
-    plan.md             # This file
-    architecture.dot    # Graphviz source → .png/.svg
-config.py               # All config: DB, Neo4j, Redis, Kafka, scrape intervals
+    plan.md                 # This file
+    architecture.dot        # Graphviz source → .png/.svg
+config.py                   # All config: DB, Neo4j, Redis, Kafka, scrape intervals
 main.py
 ```
+
 
