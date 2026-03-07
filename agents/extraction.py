@@ -300,15 +300,22 @@ class ExtractionAgent:
             entities=entity_summary,
             relations=relation_summary or "(none extracted)",
         )
-        try:
-            future = self._executor.submit(self.llm.invoke, prompt)
-            return future.result(timeout=LLM_TIMEOUT_SECONDS)
-        except TimeoutError:
-            logger.warning(f"LLM enrichment timed out ({LLM_TIMEOUT_SECONDS}s) for '{article.title[:50]}' — skipping enrichment")
-            return None
-        except Exception as e:
-            logger.error(f"LLM enrichment failed for '{article.title}': {e}")
-            return None
+        last_err = None
+        for attempt in range(3):
+            try:
+                future = self._executor.submit(self.llm.invoke, prompt)
+                return future.result(timeout=LLM_TIMEOUT_SECONDS)
+            except TimeoutError:
+                logger.warning(f"LLM enrichment timed out ({LLM_TIMEOUT_SECONDS}s) for '{article.title[:50]}' — skipping enrichment")
+                return None
+            except Exception as e:
+                last_err = e
+                if attempt < 2:
+                    wait = 1.5 ** attempt
+                    logger.debug(f"LLM enrichment attempt {attempt+1} failed, retrying in {wait:.1f}s: {e}")
+                    time.sleep(wait)
+        logger.error(f"LLM enrichment failed after 3 attempts for '{article.title}': {last_err}")
+        return None
 
     # ------------------------------------------------------------------
     # Public API

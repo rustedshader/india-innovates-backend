@@ -219,6 +219,32 @@ def news_sources():
         db.close()
 
 
+# ── GET /api/news/domains ─────────────────────────────────────────────────────
+
+@router.get("/domains")
+def list_domains():
+    """All distinct domains present in the DB with article counts."""
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            select(
+                ScrapedArticle.domain,
+                func.count(ScrapedArticle.id).label("article_count"),
+            )
+            .where(ScrapedArticle.domain != "")
+            .group_by(ScrapedArticle.domain)
+            .order_by(desc(func.count(ScrapedArticle.id)))
+        ).all()
+        return {
+            "domains": [
+                {"domain": row.domain, "article_count": row.article_count}
+                for row in rows
+            ]
+        }
+    finally:
+        db.close()
+
+
 # ── GET /api/news/{article_id} ────────────────────────────────────────────────
 
 @router.get("/{article_id}")

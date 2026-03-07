@@ -19,10 +19,11 @@ import logging
 import math
 import time
 import uuid
-from typing import Literal, Optional
+from typing import Optional
 
 import numpy as np
 import redis
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from sentence_transformers import SentenceTransformer
@@ -53,19 +54,76 @@ SOURCE_CREDIBILITY_TTL = 3600   # refresh from Postgres hourly
 class ArticleImportance(BaseModel):
     impact_score: int = Field(
         ge=0, le=10,
-        description="How many people/countries affected. 0=hyper-local, 10=global crisis.",
+        description=(
+            "Structural scale of impact — how many people, institutions, or countries "
+            "are MATERIALLY affected. Score the real-world consequence, not the emotional "
+            "shock value or sensationalism of the headline. "
+            "0 = single individual (one person killed, one company fined). "
+            "1-2 = local community or single neighbourhood. "
+            "3-4 = single city or district. "
+            "5-6 = national-level policy, economy, or public-health change. "
+            "7-8 = multi-country impact, major alliance shift, or continental policy. "
+            "9-10 = global systemic change: war escalation, nuclear posture shift, "
+            "trade-regime collapse, pandemic declaration. "
+            "\n\nCALIBRATION EXAMPLES — use these as anchors:\n"
+            "• International military strike (US-Israel on Iran) → 9-10\n"
+            "• Country lifts decades-old nuclear-weapons ban (Finland/NATO) → 8-9\n"
+            "• National election result (Nepal, India state elections) → 7-8\n"
+            "• Major tech antitrust ruling (Google monopoly) → 7-8\n"
+            "• Domestic violent crime (murder, stabbing, assault) → 1-2\n"
+            "• Celebrity / influencer incident → 1-2\n"
+            "• Scheduled awareness day (World Obesity Day) → 3-4"
+        ),
     )
     novelty_score: int = Field(
         ge=0, le=10,
-        description="How new is this story. 0=months-old ongoing, 10=breaking right now.",
+        description=(
+            "How NEW or UNPRECEDENTED the development is — not merely how recently "
+            "the article was published. Score the historical novelty of the event itself. "
+            "0 = routine, scheduled, or fully expected event. "
+            "1-2 = ongoing known situation with no new dimension. "
+            "3-4 = incremental update on a known story. "
+            "5-6 = significant policy change or notable escalation. "
+            "7-8 = first-time event or historic precedent being set. "
+            "9-10 = completely unprecedented — nothing comparable in recent history. "
+            "\n\nCALIBRATION EXAMPLES:\n"
+            "• Scheduled awareness day (World X Day, International Y Day) → 0-1\n"
+            "• Recurring seasonal weather pattern → 1-2\n"
+            "• Country lifting a decades-old weapons ban → 8-9\n"
+            "• First-ever military strike between two specific nations → 9-10\n"
+            "• A well-known political figure making a routine statement → 1-2"
+        ),
     )
     india_relevance: int = Field(
         ge=0, le=10,
-        description="Direct relevance to India's strategic/economic interests. 0=none, 10=critical.",
+        description=(
+            "Direct relevance to India's strategic, economic, or security interests. "
+            "0 = no connection to India whatsoever. "
+            "1-2 = tangential — involves Indian nationals abroad with no policy dimension, "
+            "or a domestic crime with no systemic implications. "
+            "3-4 = indirect thematic link (global trend that may eventually affect India). "
+            "5-6 = directly involves India or a key bilateral partner. "
+            "7-8 = materially impacts India's security, economy, or trade. "
+            "9-10 = existential or immediate threat to Indian sovereignty or stability. "
+            "\n\nCALIBRATION EXAMPLES:\n"
+            "• Domestic crime (Indian victim, no policy angle) → 1-2\n"
+            "• India-specific trade war or tariff dispute → 8-9\n"
+            "• India military asset crash (Su-30MKI) → 8-9\n"
+            "• Foreign policy shift by a non-partner nation → 2-3\n"
+            "• Global pandemic declaration → 6-7"
+        ),
     )
-    domain: Literal[
-        "geopolitics", "defense", "economics", "technology", "energy", "health", "other"
-    ]
+    domain: str = Field(
+        description=(
+            "Lowercase topic domain for the article. You MUST pick from this exact list: "
+            "geopolitics, defense, economics, technology, energy, health, politics, elections, "
+            "crime, human_interest, environment, science, sports, education, infrastructure, "
+            "judiciary, diplomacy. "
+            "Only if the article genuinely does not fit ANY of these, use a concise single-word "
+            "or hyphenated label of your own. Do NOT use synonyms — e.g. use 'defense' not "
+            "'military', 'geopolitics' not 'geo-politics', 'economics' not 'economy'."
+        )
+    )
     cluster_label: str = Field(
         description=(
             "3-6 word title-case label for the topic cluster. "
@@ -73,6 +131,17 @@ class ArticleImportance(BaseModel):
             "Good: 'India US Tariff Dispute'. Bad: 'Modi Slams Washington Over New Levies'."
         )
     )
+
+
+# ── System prompt (static, separated from article data) ──────────────────────
+SCORING_SYSTEM_PROMPT = (
+    "You are a news-importance scorer for an India-focused geopolitical intelligence "
+    "platform. Your sole job is to fill in the structured scoring fields for one "
+    "article at a time. Assess OBJECTIVE IMPORTANCE — the structural, geopolitical, "
+    "and policy significance of the event — never its emotional shock value or "
+    "sensationalism. The field descriptions contain detailed rubrics and calibration "
+    "examples; follow them precisely."
+)
 
 
 class NewsPriorityAgent:
@@ -191,13 +260,43 @@ class NewsPriorityAgent:
         self.r.hset(f"cluster:{cluster_uuid}", mapping=updates)
         self.r.zadd(CLUSTERS_ACTIVE_KEY, {cluster_uuid: now})
 
-    def _store_cluster_score(self, cluster_uuid: str, importance: ArticleImportance) -> None:
-        score = round(
-            0.4 * importance.impact_score
-            + 0.3 * importance.novelty_score
-            + 0.3 * importance.india_relevance,
-            2,
+    # Domain-based weight adjustments. Known high-structural-importance domains
+    # get a boost; sensationalist-prone domains get dampened. Unlisted domains
+    # default to 1.0 (neutral).
+    DOMAIN_WEIGHT: dict[str, float] = {
+        "geopolitics": 1.10,
+        "defense": 1.10,
+        "diplomacy": 1.10,
+        "economics": 1.05,
+        "energy": 1.05,
+        "elections": 1.05,
+        "judiciary": 1.05,
+        "technology": 1.00,
+        "politics": 1.00,
+        "infrastructure": 1.00,
+        "environment": 1.00,
+        "science": 1.00,
+        "education": 1.00,
+        "health": 0.95,
+        "sports": 0.90,
+        "crime": 0.85,
+        "human_interest": 0.85,
+    }
+
+    def _store_cluster_score(
+        self, cluster_uuid: str, importance: ArticleImportance, article_count: int = 1
+    ) -> None:
+        # Base score: impact-heavy formula (impact is the primary signal)
+        base = (
+            0.50 * importance.impact_score
+            + 0.20 * importance.novelty_score
+            + 0.30 * importance.india_relevance
         )
+        # Domain modifier
+        domain_mult = self.DOMAIN_WEIGHT.get(importance.domain, 1.0)
+        # Coverage density bonus: more sources → higher importance (diminishing returns)
+        coverage_bonus = min(math.log(max(article_count, 1) + 1) / math.log(6), 1.0) * 0.5
+        score = round(min((base * domain_mult) + coverage_bonus, 10.0), 2)
         self.r.hset(
             f"cluster:{cluster_uuid}",
             mapping={
@@ -286,16 +385,26 @@ class NewsPriorityAgent:
 
     # ── LLM scoring ───────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _truncate_at_word(text: str, max_chars: int = 500) -> str:
+        """Truncate text at the last word boundary within *max_chars*."""
+        if len(text) <= max_chars:
+            return text
+        cut = text[:max_chars].rsplit(" ", 1)[0]
+        return cut.rstrip(".,;:!?-") + " …"
+
     def _score_article(self, article: Article) -> Optional[ArticleImportance]:
-        """Score a single cluster representative. One call, structured output."""
-        prompt = (
+        """Score a single cluster representative via system + human message pair."""
+        user_text = (
             f"Title: {article.title}\n"
             f"Source: {article.source}\n"
-            f"Description: {article.description[:400]}\n\n"
-            "Score this news article for an India-focused geopolitical intelligence platform."
+            f"Description: {self._truncate_at_word(article.description, 500)}"
         )
         try:
-            return self.llm.invoke(prompt)
+            return self.llm.invoke([
+                SystemMessage(content=SCORING_SYSTEM_PROMPT),
+                HumanMessage(content=user_text),
+            ])
         except Exception as e:
             logger.error(f"Importance scoring failed for '{article.title[:60]}': {e}")
             return None
@@ -431,11 +540,12 @@ class NewsPriorityAgent:
         for cluster_uuid in new_cluster_uuids:
             meta = self.r.hgetall(f"cluster:{cluster_uuid}")
             best_url = meta.get("best_article_url", "")
+            article_count = int(meta.get("article_count", "1"))
             rep = next((a for a in batch if a.url == best_url), None)
             if rep:
                 importance = self._score_article(rep)
                 if importance:
-                    self._store_cluster_score(cluster_uuid, importance)
+                    self._store_cluster_score(cluster_uuid, importance, article_count=article_count)
 
         # Post-LLM label merge: collapse clusters the LLM labelled identically
         # (catches same broad topic with different specific wording in embeddings)
