@@ -210,16 +210,29 @@ class CypherQueryPlan(BaseModel):
         description="List of Cypher queries to execute. Use multiple queries for complex questions. Empty list if no query can answer the question."
     )
 
-SYNTHESIZE_SYSTEM = """You are a geopolitical intelligence analyst. Given a user's question and data retrieved from a knowledge graph, provide a clear, concise answer.
+SYNTHESIZE_SYSTEM = """You are a senior geopolitical intelligence analyst writing a briefing.
+Given a user's question and raw data from a knowledge graph, write a concise
+analytical summary — NOT a data dump.
 
-Rules:
-- Base your answer ONLY on the provided graph data and article content. Do not make up facts.
-- If the data is empty or insufficient, say so honestly.
-- Mention specific entities, relationships, and dates from the data.
-- If source articles are available, reference them by title and incorporate relevant details from the article content.
-- When full article content is provided, use it to add depth, context, and nuance to your answer.
-- Keep answers focused and structured. Use bullet points for lists.
-- For complex questions, organize by theme or entity.
+Style rules:
+- Write in flowing prose organized by theme (diplomacy, military, economy, etc.).
+- Synthesize and connect the dots: explain *why* relationships matter, what
+  caused what, and what the strategic implications are.
+- Deduplicate: if the data contains repeated events or relationships, mention
+  each only once. Summarize patterns ("multiple rounds of strikes") rather
+  than listing every identical entry.
+- Prioritize: lead with the most significant/recent developments. Skip trivial
+  or redundant details.
+- When discussing a country, cover: key alliances & rivalries, recent military
+  actions, economic ties, impact on other countries (especially India), and
+  ongoing negotiations or disputes.
+- Use bullet points sparingly — only for short reference lists (e.g. key allies).
+  The main body should be narrative paragraphs.
+- Cite source articles by title when referencing specific claims.
+- Keep the total answer to 300-500 words. Be dense with insight, not verbose.
+- Do NOT reproduce raw tables, lists of IDs, or data dumps from the graph.
+- Base your answer ONLY on the provided data. Do not make up facts.
+- If the data is insufficient, say so honestly.
 """
 
 ROUTER_SYSTEM = """You are a router for a geopolitical knowledge graph assistant.
@@ -316,7 +329,8 @@ class GraphChatAgent:
             state["route"] = "direct"  # fallback to direct answer
             return state
 
-        queries = [q.cypher.strip() for q in plan.queries if q.cypher.strip()]
+        queries = [_clean_cypher(q.cypher) for q in plan.queries]
+        queries = [q for q in queries if q]
 
         state["cypher_queries"] = queries
         logger.info(f"Generated {len(queries)} Cypher query/queries")
@@ -392,50 +406,70 @@ class GraphChatAgent:
         all_lines = []
         for name in entity_names[:3]:  # cap at 3 entities
             try:
-                result = session.run("""
-                    MATCH (e:Entity {name: $name})
-                    OPTIONAL MATCH (e)-[r:RELATES_TO]->(t:Entity)
-                    OPTIONAL MATCH (e)<-[r2:RELATES_TO]-(s:Entity)
-                    OPTIONAL MATCH (e)-[:INVOLVED_IN]->(ev:Event)
-                    OPTIONAL MATCH (a:Article)-[:EVIDENCES]->(e)
-                    RETURN e.name AS entity, e.type AS type,
-                           collect(DISTINCT {relation: r.type, target: t.name, target_type: t.type}) AS outgoing,
-                           collect(DISTINCT {relation: r2.type, source: s.name, source_type: s.type}) AS incoming,
-                           collect(DISTINCT {event: ev.name, date: ev.date, status: ev.status}) AS events,
-                           collect(DISTINCT {title: a.title, source: a.source, url: a.url}) AS articles
-                    LIMIT 1
-                """, name=name)
-                rec = result.single()
-                if not rec:
+                # Fetch outgoing relationships
+                r_out = session.run(
+                    'MATCH (e:Entity {name: $name}) '
+                    'OPTIONAL MATCH (e)-[r:RELATES_TO]->(t:Entity) '
+                    'RETURN e.name AS entity, e.type AS type, '
+                    'collect(DISTINCT {relation: r.type, target: t.name, target_type: t.type}) AS outgoing '
+                    'LIMIT 1',
+                    name=name,
+                )
+                rec_out = r_out.single()
+                if not rec_out:
                     continue
 
-                lines = [f"\nEntity: {rec['entity']} ({rec['type']})"]
+                lines = [f"\nEntity: {rec_out['entity']} ({rec_out['type']})"]
 
-                outgoing = [r for r in rec["outgoing"] if r.get("target")]
+                outgoing = [r for r in rec_out["outgoing"] if r.get("target")]
                 if outgoing:
                     lines.append("  Outgoing relationships:")
-                    for r in outgoing:
+                    for r in outgoing[:20]:
                         lines.append(f"    → {r['relation']} → {r['target']} ({r.get('target_type', '')})")
 
-                incoming = [r for r in rec["incoming"] if r.get("source")]
-                if incoming:
-                    lines.append("  Incoming relationships:")
-                    for r in incoming:
-                        lines.append(f"    ← {r['relation']} ← {r['source']} ({r.get('source_type', '')})")
+                # Fetch incoming relationships
+                r_in = session.run(
+                    'MATCH (e:Entity {name: $name}) '
+                    'OPTIONAL MATCH (e)<-[r2:RELATES_TO]-(s:Entity) '
+                    'RETURN collect(DISTINCT {relation: r2.type, source: s.name, source_type: s.type}) AS incoming '
+                    'LIMIT 1',
+                    name=name,
+                )
+                rec_in = r_in.single()
+                if rec_in:
+                    incoming = [r for r in rec_in["incoming"] if r.get("source")]
+                    if incoming:
+                        lines.append("  Incoming relationships:")
+                        for r in incoming[:20]:
+                            lines.append(f"    ← {r['relation']} ← {r['source']} ({r.get('source_type', '')})")
 
-                events = [e for e in rec["events"] if e.get("event")]
+                # Fetch events (separate query to avoid cartesian product)
+                r_ev = session.run(
+                    'MATCH (e:Entity {name: $name})-[:INVOLVED_IN]->(ev:Event) '
+                    'RETURN DISTINCT ev.name AS event, ev.date AS date, ev.status AS status '
+                    'ORDER BY ev.date DESC LIMIT 15',
+                    name=name,
+                )
+                events = [dict(r) for r in r_ev]
                 if events:
                     lines.append("  Events:")
                     for e in events:
                         lines.append(f"    - {e['event']} (date: {e.get('date', '?')}, status: {e.get('status', '?')})")
 
-                articles = [a for a in rec["articles"] if a.get("title")]
+                # Fetch source articles (separate query)
+                r_art = session.run(
+                    'MATCH (a:Article)-[:EVIDENCES]->(e:Entity {name: $name}) '
+                    'RETURN DISTINCT a.title AS title, a.source AS source, a.url AS url '
+                    'ORDER BY a.pub_date DESC LIMIT 10',
+                    name=name,
+                )
+                articles = [dict(r) for r in r_art]
                 if articles:
                     lines.append(f"  Source articles ({len(articles)}):")
-                    for a in articles[:10]:
+                    for a in articles:
                         lines.append(f"    - \"{a['title']}\" ({a.get('source', '')})")
 
-                if len(lines) > 1:  # more than just the header
+                if len(lines) > 1:
                     all_lines.extend(lines)
 
             except Exception as e:
@@ -478,13 +512,23 @@ class GraphChatAgent:
 
     def _synthesize_node(self, state: ChatState) -> ChatState:
         """Synthesize a natural-language answer from graph results."""
-        logger.info(f"[STEP: synthesize] Graph context length: {len(state.get('graph_context', ''))} chars, article content length: {len(state.get('article_content', ''))} chars")
+        graph_ctx = state.get("graph_context", "")
+        article_ctx = state.get("article_content", "")
+
+        # Cap context size to avoid overwhelming the LLM
+        MAX_GRAPH_CTX = 12000
+        MAX_ARTICLE_CTX = 6000
+        if len(graph_ctx) > MAX_GRAPH_CTX:
+            graph_ctx = graph_ctx[:MAX_GRAPH_CTX] + "\n... [truncated — data continues]"
+        if len(article_ctx) > MAX_ARTICLE_CTX:
+            article_ctx = article_ctx[:MAX_ARTICLE_CTX] + "\n... [truncated]"
+
+        logger.info(f"[STEP: synthesize] Graph context: {len(graph_ctx)} chars, article content: {len(article_ctx)} chars")
         user_content = (
             f"User question: {state['question']}\n\n"
-            f"Knowledge graph data:\n{state['graph_context']}"
+            f"Knowledge graph data:\n{graph_ctx}"
         )
 
-        article_ctx = state.get("article_content", "")
         if article_ctx:
             user_content += f"\n\nFull article content for reference:\n{article_ctx}"
 
@@ -593,9 +637,30 @@ class GraphChatAgent:
         }
 
 
+import re
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _clean_cypher(raw: str) -> str:
+    """Strip trailing JSON artifacts and code fences from LLM-generated Cypher."""
+    s = raw.strip()
+    # Remove markdown code fences
+    if s.startswith("```"):
+        s = re.sub(r"^```(?:cypher)?\s*\n?", "", s)
+        s = re.sub(r"\n?```\s*$", "", s)
+    # Strip trailing JSON artifacts like }]}" or "}
+    s = re.sub(r'[}\]"]+\s*$', '', s)
+    # Restore a closing brace only if query ends with LIMIT <n (i.e. it was valid)
+    # Actually, just ensure balanced braces aren't broken:
+    # Count braces in Cypher map literals { } — they should be balanced
+    opens = s.count('{')
+    closes = s.count('}')
+    if closes < opens:
+        s += '}' * (opens - closes)
+    return s.strip()
+
 
 def _format_history(messages: list) -> str:
     """Format message list into a readable conversation string."""
@@ -621,15 +686,32 @@ def _format_neo4j_value(v) -> str:
     return str(v)
 
 
+def _dedup_list_values(items: list) -> list:
+    """Deduplicate a list of dicts by their string representation."""
+    seen = set()
+    result = []
+    for item in items:
+        key = str(item)
+        if key not in seen:
+            seen.add(key)
+            result.append(item)
+    return result
+
+
 def _format_records(records: list[dict], cypher: str) -> str:
-    """Format Neo4j records as readable text."""
+    """Format Neo4j records as readable text with deduplication and truncation."""
     lines = []
     for i, rec in enumerate(records[:25]):
         parts = []
         for k, v in rec.items():
+            # Deduplicate and truncate list values
+            if isinstance(v, list):
+                v = _dedup_list_values(v)
+                if len(v) > 25:
+                    v = v[:25]  # cap long lists
             parts.append(f"{k}: {_format_neo4j_value(v)}")
         lines.append(f"  {i+1}. {', '.join(parts)}")
-    return f"Query: {cypher}\n\nResults ({len(records)} rows):\n" + "\n".join(lines)
+    return f"Results ({len(records)} rows):\n" + "\n".join(lines)
 
 
 def _is_thin_result(records: list[dict]) -> bool:

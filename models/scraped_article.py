@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import String, Text, DateTime, Boolean, func
+from sqlalchemy import String, Text, DateTime, Boolean, Float, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from models.database import Base
@@ -25,6 +26,13 @@ class ScrapedArticle(Base):
     top_image: Mapped[str] = mapped_column(String(2048), default="")
 
     is_content_extracted: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Priority / clustering fields (populated by NewsPriorityAgent)
+    importance_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True, index=True)
+    topic_cluster_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    cluster_label: Mapped[str] = mapped_column(String(256), default="")
+    domain: Mapped[str] = mapped_column(String(64), default="")
+
     scraped_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -20,6 +20,7 @@ from config import (
     REDIS_HOST,
     REDIS_PORT,
 )
+from agents.news_priority import NewsPriorityAgent
 from graphs.graph_builder import GraphBuilder
 from scrapers.news_rss import Article
 
@@ -83,6 +84,11 @@ def main():
     )
 
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+
+    logger.info("Initializing NewsPriorityAgent (loading embedding model)...")
+    priority_agent = NewsPriorityAgent()
+    logger.info("NewsPriorityAgent ready.")
+
     logger.info("Initializing GraphBuilder (loading models)...")
     builder = GraphBuilder()
     logger.info("GraphBuilder ready.")
@@ -112,13 +118,18 @@ def main():
             if not batch:
                 continue
 
-            # Process the batch through the full pipeline
             logger.info(f"Processing batch of {len(batch)} articles")
             try:
-                count = builder.process_articles(batch)
-                logger.info(f"Batch complete: {count} articles processed successfully")
+                # Stage 1: cluster + score, save ALL to Postgres, return high-importance subset
+                to_graph = priority_agent.process(batch)
+                logger.info(f"Priority agent: {len(to_graph)}/{len(batch)} articles forwarded to graph")
 
-                # Publish live feed events for each article
+                # Stage 2: run extraction pipeline only on high-importance articles
+                if to_graph:
+                    count = builder.process_articles(to_graph)
+                    logger.info(f"GraphBuilder: {count} articles processed successfully")
+
+                # Publish live feed events for ALL articles (not just graphed ones)
                 for article in batch:
                     try:
                         event = json.dumps({

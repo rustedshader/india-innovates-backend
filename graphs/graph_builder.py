@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from neo4j import GraphDatabase
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from config import NEO4J_URI, NEO4J_AUTH
 from scrapers.news_rss import Article, create_default_scraper
@@ -62,21 +63,32 @@ class GraphBuilder:
             db.close()
 
     def _save_articles_to_postgres(self, articles: list[Article]):
+        """Upsert articles to Postgres.
+
+        Uses ON CONFLICT DO NOTHING so articles already saved by NewsPriorityAgent
+        (with importance_score / cluster metadata) are not overwritten.
+        """
         db = SessionLocal()
         try:
             for article in articles:
-                try:
-                    db.add(ScrapedArticle(
-                        url=article.url, content_hash=article.content_hash,
-                        title=article.title, source=article.source,
-                        description=article.description, pub_date=article.pub_date,
-                        guid=article.guid, full_text=article.full_text,
-                        authors=json.dumps(article.authors), top_image=article.top_image,
+                stmt = (
+                    pg_insert(ScrapedArticle)
+                    .values(
+                        url=article.url,
+                        content_hash=article.content_hash,
+                        title=article.title,
+                        source=article.source,
+                        description=article.description,
+                        pub_date=article.pub_date,
+                        guid=article.guid,
+                        full_text=article.full_text,
+                        authors=json.dumps(article.authors),
+                        top_image=article.top_image,
                         is_content_extracted=article.is_content_extracted,
-                    ))
-                    db.flush()
-                except Exception:
-                    db.rollback()
+                    )
+                    .on_conflict_do_nothing(index_elements=["url"])
+                )
+                db.execute(stmt)
             db.commit()
         except Exception as e:
             db.rollback()
