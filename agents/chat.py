@@ -35,7 +35,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 from langgraph.graph import END, START, StateGraph
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase, Query
 from sqlalchemy import select
 
 from config import NEO4J_URI, NEO4J_AUTH
@@ -99,17 +99,33 @@ CYPHER_SYSTEM = f"""You are a Neo4j Cypher expert for a geopolitical knowledge g
 Query patterns for common question types:
 
 1. "Tell me about X" / "What do you know about X":
-   Fetch the entity, all its relationships, connected entities, events, AND source articles:
+   IMPORTANT: Use SEPARATE queries for each aspect to avoid cartesian product explosion.
+   Do NOT combine multiple OPTIONAL MATCH clauses in one query — this creates
+   a massive cross-product that will hang the database.
+
+   Query 1a — outgoing relationships:
    MATCH (e:Entity)
-   WHERE toLower(e.name) CONTAINS toLower("X")
+   WHERE toLower(e.name) = toLower("X")
    OPTIONAL MATCH (e)-[r:RELATES_TO]->(t:Entity)
-   OPTIONAL MATCH (e)<-[r2:RELATES_TO]-(s:Entity)
-   OPTIONAL MATCH (e)-[:INVOLVED_IN]->(ev:Event)
-   OPTIONAL MATCH (a:Article)-[:EVIDENCES]->(e)
    RETURN e.name AS entity, e.type AS type,
-          collect(DISTINCT {{relation: r.type, target: t.name, target_type: t.type}}) AS outgoing,
-          collect(DISTINCT {{relation: r2.type, source: s.name, source_type: s.type}}) AS incoming,
-          collect(DISTINCT {{event: ev.name, date: ev.date, status: ev.status}}) AS events,
+          collect(DISTINCT {{relation: r.type, target: t.name, target_type: t.type}}) AS outgoing
+   LIMIT 5
+
+   Query 1b — incoming relationships:
+   MATCH (e:Entity)
+   WHERE toLower(e.name) = toLower("X")
+   OPTIONAL MATCH (e)<-[r2:RELATES_TO]-(s:Entity)
+   RETURN e.name AS entity, e.type AS type,
+          collect(DISTINCT {{relation: r2.type, source: s.name, source_type: s.type}}) AS incoming
+   LIMIT 5
+
+   Query 1c — events and articles:
+   MATCH (e:Entity)
+   WHERE toLower(e.name) = toLower("X")
+   OPTIONAL MATCH (e)-[:INVOLVED_IN]->(ev:Event)
+   WITH e, collect(DISTINCT {{event: ev.name, date: ev.date, status: ev.status}}) AS events
+   OPTIONAL MATCH (a:Article)-[:EVIDENCES]->(e)
+   RETURN e.name AS entity, e.type AS type, events,
           collect(DISTINCT {{title: a.title, source: a.source, url: a.url, pub_date: a.pub_date}}) AS articles
    LIMIT 5
 
@@ -138,8 +154,14 @@ Query patterns for common question types:
 Rules:
 - Return ONLY valid Cypher READ queries (no mutations).
 - Use case-insensitive matching with toLower() or CONTAINS for entity names.
+- For exact entity lookups (e.g. a country name), prefer `=` over `CONTAINS` to avoid matching too many entities.
+  GOOD: toLower(e.name) = toLower("india")
+  BAD:  toLower(e.name) CONTAINS toLower("india")  — this also matches "Indian Oil Corporation", "Indian Ocean", etc.
+  Use CONTAINS only when you need substring/fuzzy matching.
 - ALWAYS use :RELATES_TO with r.type for relationship filtering. Never use dynamic edge labels.
-- For general "tell me about" questions, use pattern #1 to return full neighborhood.
+- NEVER combine more than 2 OPTIONAL MATCH clauses in a single query. Multiple OPTIONAL MATCHes
+  create cartesian products that hang the database. Split into separate queries instead.
+- For general "tell me about" questions, use pattern #1 (multiple queries).
 - Always include source articles (via :EVIDENCES) when possible — users want provenance.
 - Limit results to 25 rows unless the user asks for more.
 - Always alias return columns clearly.
@@ -255,6 +277,7 @@ class GraphChatAgent:
 
     def _route_node(self, state: ChatState) -> ChatState:
         """Decide whether we need a graph query or can answer directly."""
+        logger.info(f"[STEP: router] Question: {state['question']}")
         messages = [
             SystemMessage(content=ROUTER_SYSTEM),
             HumanMessage(content=state["question"]),
@@ -265,11 +288,12 @@ class GraphChatAgent:
             state["route"] = "graph"
         else:
             state["route"] = "direct"
-        logger.debug(f"Router: {state['route']} for question: {state['question']}")
+        logger.info(f"[STEP: router] Route decided: {state['route']}")
         return state
 
     def _generate_cypher_node(self, state: ChatState) -> ChatState:
         """Generate one or more Cypher queries from the user question."""
+        logger.info(f"[STEP: generate_cypher] Generating Cypher for: {state['question']}")
         # Build input with conversation context
         history = _format_history(state["messages"][-6:])  # last 3 turns
         if history:
@@ -318,6 +342,7 @@ class GraphChatAgent:
         with self.driver.session() as session:
             for i, cypher in enumerate(queries):
                 label = f"Query {i+1}/{len(queries)}"
+                logger.info(f"{label}: Executing Cypher: {cypher[:200]}")
 
                 # Safety: reject mutations
                 upper = cypher.upper()
@@ -326,8 +351,11 @@ class GraphChatAgent:
                     continue
 
                 try:
-                    result = session.run(cypher)
+                    import time as _t
+                    _q_start = _t.time()
+                    result = session.run(Query(cypher, timeout=30))
                     records = [dict(r) for r in result]
+                    logger.info(f"{label}: Got {len(records)} rows in {_t.time()-_q_start:.2f}s")
 
                     if not records:
                         all_results.append(f"{label}: No results.")
@@ -418,6 +446,7 @@ class GraphChatAgent:
     def _fetch_articles_node(self, state: ChatState) -> ChatState:
         """Fetch full article content from Postgres for articles found in graph results."""
         urls = state.get("article_urls", [])
+        logger.info(f"[STEP: fetch_articles] {len(urls)} article URLs to fetch")
         if not urls:
             state["article_content"] = ""
             return state
@@ -449,6 +478,7 @@ class GraphChatAgent:
 
     def _synthesize_node(self, state: ChatState) -> ChatState:
         """Synthesize a natural-language answer from graph results."""
+        logger.info(f"[STEP: synthesize] Graph context length: {len(state.get('graph_context', ''))} chars, article content length: {len(state.get('article_content', ''))} chars")
         user_content = (
             f"User question: {state['question']}\n\n"
             f"Knowledge graph data:\n{state['graph_context']}"
