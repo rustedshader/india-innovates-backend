@@ -9,6 +9,11 @@ from alembic import context
 from models.database import Base, DATABASE_URL
 from models.scraped_article import ScrapedArticle  # noqa: F401
 from models.entity_alias import EntityAlias  # noqa: F401
+from models.domain_report import DomainReport  # noqa: F401
+from models.domain_weight_cache import DomainWeightCache  # noqa: F401
+from models.weather_observation import WeatherObservation  # noqa: F401
+from models.weather_anomaly import WeatherAnomalyRecord  # noqa: F401
+from models.climate_normal import ClimateNormal  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

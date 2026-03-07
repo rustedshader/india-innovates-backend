@@ -15,6 +15,7 @@ digraph architecture {
         color="#888888";
         fontcolor="#555555";
         rss [label="RSS Feeds\n(TOI, NDTV, Hindu,\nET, Livemint, ...)", fillcolor="#E3F2FD", color="#1565C0"];
+        openmeteo [label="Open-Meteo API\n━━━━━━━━━━━━━━━━━\nForecast (7-day)\nArchive (1940–present)\nClimate (30-yr normals)\nFree, no API key", fillcolor="#E3F2FD", color="#1565C0"];
     }
 
     // ── Infrastructure ──
@@ -93,6 +94,11 @@ digraph architecture {
     // ── Report Storage ──
     report_db [label="Domain Reports\n(Postgres)\n━━━━━━━━━━━━━━━━━━━━━\nJSON report storage\nPer domain + date range", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
 
+    // ── Weather Storage ──
+    weather_obs_db [label="Weather Observations\n(Postgres)\n━━━━━━━━━━━━━━━━━━━━━\n25 cities × daily\n16 weather vars + z-scores\nUpsert by (city, date)", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    weather_anomaly_db [label="Weather Anomalies\n(Postgres)\n━━━━━━━━━━━━━━━━━━━━━\nHeat/cold wave, drought\nExtreme rain, cyclone proxy\nSeverity + z-score", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    climate_normals_db [label="Climate Normals\n(Postgres)\n━━━━━━━━━━━━━━━━━━━━━\n30-yr monthly baselines\nmean, std, percentiles\nPer city × variable", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
     // ── Temporal Agent ──
     temporal [label="Temporal Agent (stub)\n━━━━━━━━━━━━━━━━━\n• Logs temporal markers\n• Passthrough\n• State tracking planned", fillcolor="#E8EAF6", color="#283593"];
 
@@ -101,6 +107,23 @@ digraph architecture {
 
     // ── Storage ──
     neo4j [label="Neo4j Graph DB\n━━━━━━━━━━━━━━━━━\nEntity, Event, Article\nnodes + RELATES_TO,\nINVOLVED_IN, EVIDENCES", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
+
+    // ── Weather Pipeline ──
+    subgraph cluster_weather {
+        label="  WEATHER PRODUCER  (scheduler/weather_producer.py)  ";
+        labeljust=l;
+        style=filled;
+        fillcolor="#E0F2F1";
+        color="#00695C";
+        fontcolor="#004D40";
+
+        weather_scraper [label="WeatherScraper\n━━━━━━━━━━━━━━━━━━━\n• fetch_historical()\n• fetch_forecast()\n• fetch_climate_normals()\n• 25 Indian cities\n• EC_Earth3P_HR model", fillcolor="#B2DFDB", color="#00695C"];
+        anomaly_detector [label="WeatherAnomalyDetector\n━━━━━━━━━━━━━━━━━━━━━━━\n• Heat wave (40°C / 3 days)\n• Cold wave (4°C / 3 days)\n• Extreme rain (204.5mm/day)\n• Drought (compound index)\n• Cyclone proxy (90km/h+rain)\n• Z-score computation", fillcolor="#B2DFDB", color="#00695C"];
+        trend_analyzer [label="WeatherTrendAnalyzer\n━━━━━━━━━━━━━━━━━━━━━\n• Annual trend (linregress)\n• Monsoon analysis (Jun-Sep)\n• Extreme frequency tracking", fillcolor="#B2DFDB", color="#00695C"];
+
+        weather_scraper -> anomaly_detector [label="daily DataFrame\n+ normals", color="#00695C", fontcolor="#004D40"];
+        weather_scraper -> trend_analyzer [label="historical\nDataFrame", color="#00695C", fontcolor="#004D40"];
+    }
 
     // ── Report Generation Pipeline ──
     subgraph cluster_reports {
@@ -147,6 +170,8 @@ digraph architecture {
         api_chat  [label="/api/chat\n━━━━━━━━━━━━\nConversational Q&A\nRetry w/ backoff", fillcolor="#B2EBF2", color="#00838F", shape=box];
         api_reports [label="/api/reports\n━━━━━━━━━━━━\nDomain briefings\n+ India impact\n+ inference", fillcolor="#B2EBF2", color="#00838F", shape=box];
         api_live [label="/api/live-feed\n━━━━━━━━━━━━\nSSE + WebSocket\nRedis pub/sub", fillcolor="#B2EBF2", color="#00838F", shape=box];
+
+        api_weather [label="/api/weather/*\n━━━━━━━━━━━━━━━━━\ncities | current\ntrends | anomalies\nmonsoon | climate-trends", fillcolor="#B2EBF2", color="#00838F", shape=box];
     }
 
     // ── Chat Agent (LangGraph) ──
@@ -240,6 +265,17 @@ digraph architecture {
     direct -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed];
     api_chat -> chat_ui [color="#555555"];
 
+    // Weather pipeline edges
+    openmeteo -> weather_scraper [label="REST API\n(3 endpoints)", color="#1565C0", fontcolor="#1565C0"];
+    anomaly_detector -> weather_obs_db [label="upsert obs\n+ z-scores", color="#00695C", fontcolor="#00695C", style=dashed];
+    anomaly_detector -> weather_anomaly_db [label="save\nanomalies", color="#00695C", fontcolor="#00695C", style=dashed];
+    weather_scraper -> climate_normals_db [label="save\nnormals", color="#00695C", fontcolor="#00695C", style=dashed];
+    climate_normals_db -> anomaly_detector [label="load\nnormals", color="#00695C", fontcolor="#00695C", style=dashed];
+    anomaly_detector -> redis [label="publish\nalerts", color="#D32F2F", fontcolor="#D32F2F", style=dashed];
+    api_weather -> weather_obs_db [label="query obs", color="#00695C", fontcolor="#00695C", style=dashed];
+    api_weather -> weather_anomaly_db [label="query\nanomalies", color="#00695C", fontcolor="#00695C", style=dashed];
+    api_weather -> climate_normals_db [label="query\nnormals", color="#00695C", fontcolor="#00695C", style=dashed];
+
     // LLM connections
     canon -> groq [style=dashed, color="#F57F17", dir=both];
     enrich -> groq [style=dashed, color="#F57F17", dir=both];
@@ -269,9 +305,10 @@ digraph architecture {
         l6  [label="🟡  LLM Provider (Groq)"];
         l7  [label="🔷  Chat Agent (LangGraph)"];
         l8  [label="🔶  Kafka Pipeline"];
-        l9  [label="🔺  Redis (dedup + pub/sub)"];
+        l9  [label="🔺  Redis (dedup + pub/sub + alerts)"];
         l10 [label="🟩  Postgres (articles, weights, reports)"];
+        l11 [label="🌦  Weather Pipeline (Open-Meteo → anomaly detection)"];
 
-        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 -> l8 -> l9 -> l10 [style=invis];
+        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 -> l8 -> l9 -> l10 -> l11 [style=invis];
     }
 }

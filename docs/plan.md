@@ -467,40 +467,169 @@ No data pulled to Python for filtering.
 | 9     | Inference Agent — cross-domain chain discovery   | ✅ Done      |
 | 10    | Multi-agent report generation + India impact     | ✅ Done      |
 | 11    | Dynamic domain weights (LLM-driven scoring)      | ✅ Done      |
+| 12    | Weather pipeline (Open-Meteo ingest + anomalies) | ✅ Done      |
 
 ---
 
 ## Running the System
 
-Three independent processes, each suitable for its own Docker container:
+The system comprises **5 independent processes** plus required infrastructure services.
+Each process can run in its own terminal or Docker container.
+
+### 0. Prerequisites — Infrastructure Services
+
+These must be running before any application process starts:
 
 ```bash
-# Terminal 1: API server
-uv run uvicorn main:app --reload
+# PostgreSQL (default: localhost:5432)
+# If using Homebrew on macOS:
+brew services start postgresql@17
+# Or via Docker:
+# docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=password postgres:17
 
-# Terminal 2: Kafka producer (scrapes every 30min)
-python -m scheduler.producer
+# Redis (default: localhost:6379)
+brew services start redis
+# Or: docker run -d --name redis -p 6379:6379 redis:7
 
-# Terminal 3: Kafka consumer (processes batches)
-python -m scheduler.consumer
+# Neo4j (default: neo4j://localhost:7687)
+# Desktop: open Neo4j Desktop → start your database
+# Or: docker run -d --name neo4j -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:5
 
-# Terminal 4: Report scheduler (generates reports every hour)
-python -m scheduler.report_scheduler
+# Apache Kafka (default: localhost:9092)
+# If using Homebrew:
+brew services start kafka
+# Or via Docker (with KRaft, no Zookeeper):
+# docker run -d --name kafka -p 9092:9092 apache/kafka:latest
 ```
+
+Create the Kafka topic (only once):
+```bash
+# Homebrew Kafka:
+/opt/homebrew/opt/kafka/bin/kafka-topics --create --topic india-innovates --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 2>/dev/null || true
+```
+
+### 1. Install Dependencies & Run Migrations
+
+```bash
+# Install all Python dependencies (uses uv, not pip)
+uv sync
+
+# Apply database migrations (creates all Postgres tables)
+uv run alembic upgrade head
+```
+
+### 2. One-Time Weather Bootstrap (run before first weather cycle)
+
+```bash
+# Step A: Compute 30-year climate normals for all 25 Indian cities
+# Uses the Open-Meteo Climate API (EC_Earth3P_HR model, 1991-2020)
+# Takes ~2-5 min (25 cities × 30 years of data)
+uv run python -m scheduler.weather_producer --bootstrap-normals
+
+# Step B (optional): Backfill N years of historical daily observations
+# Default is 5 years; adjust with --years
+uv run python -m scheduler.weather_producer --backfill --years 5
+```
+
+### 3. Start All Processes
+
+Open **5 terminals**, each from the project root:
+
+```bash
+# ── Terminal 1: API Server ──────────────────────────────────────────
+# FastAPI with hot-reload. Serves all REST + WebSocket endpoints.
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# API docs: http://localhost:8000/docs
+# Graph viz: http://localhost:8000/
+# Chat UI:   http://localhost:8000/chat
+
+# ── Terminal 2: News Producer (Kafka) ───────────────────────────────
+# Scrapes RSS feeds every 30min, publishes articles to Kafka.
+uv run python -m scheduler.producer
+
+# ── Terminal 3: News Consumer (Kafka) ───────────────────────────────
+# Consumes article batches from Kafka, runs extraction pipeline
+# (GLiNER2 NER → LLM canonicalization → LLM enrichment → entity
+# resolution → Neo4j + Postgres storage). Publishes live-feed events.
+uv run python -m scheduler.consumer
+
+# ── Terminal 4: Report Scheduler ────────────────────────────────────
+# Generates multi-agent intelligence reports every hour across all
+# domains (geopolitics, defense, economics, technology, energy, etc.).
+# Each report runs: ReportAgent → IndiaImpactAgent → InferenceAgent.
+uv run python -m scheduler.report_scheduler
+
+# ── Terminal 5: Weather Producer ────────────────────────────────────
+# Fetches weather data for 25 Indian cities every 6 hours from
+# Open-Meteo, computes z-scores against climate normals, detects
+# anomalies (heat waves, cold waves, extreme rain, droughts, cyclone
+# proxies), stores to Postgres, publishes alerts to Redis.
+uv run python -m scheduler.weather_producer
+```
+
+### Quick-Start (minimal — just API + weather)
+
+If you only want to explore the weather features without the full news pipeline:
+
+```bash
+# Ensure Postgres and Redis are running, then:
+uv sync
+uv run alembic upgrade head
+uv run python -m scheduler.weather_producer --bootstrap-normals
+uv run python -m scheduler.weather_producer --once       # single fetch cycle
+uv run uvicorn main:app --reload                         # start API
+# Visit http://localhost:8000/docs → try /api/weather/* endpoints
+```
+
+### One-Off Commands
+
+```bash
+# Run a single weather cycle without starting the loop:
+uv run python -m scheduler.weather_producer --once
+
+# Backfill weather with custom year range:
+uv run python -m scheduler.weather_producer --backfill --years 10
+
+# Generate a new Alembic migration after model changes:
+uv run alembic revision --autogenerate -m "description"
+uv run alembic upgrade head
+```
+
+### Process Summary
+
+| # | Process | Command | Schedule | Depends On |
+|---|---------|---------|----------|------------|
+| 1 | **API Server** | `uv run uvicorn main:app --reload` | Always on | Postgres, Neo4j, Redis |
+| 2 | **News Producer** | `uv run python -m scheduler.producer` | Every 30 min | Kafka, Redis, Postgres |
+| 3 | **News Consumer** | `uv run python -m scheduler.consumer` | Continuous | Kafka, Redis, Postgres, Neo4j |
+| 4 | **Report Scheduler** | `uv run python -m scheduler.report_scheduler` | Every 1 hr | Postgres, Neo4j, Redis |
+| 5 | **Weather Producer** | `uv run python -m scheduler.weather_producer` | Every 6 hr | Postgres, Redis |
 
 ### Configuration (config.py / environment variables)
 
-| Variable                     | Default           | Description                              |
-|------------------------------|-------------------|------------------------------------------|
-| `KAFKA_BOOTSTRAP_SERVERS`    | `localhost:9092`  | Kafka broker address                     |
-| `KAFKA_TOPIC`                | `india-innovates` | Topic for article messages               |
-| `SCRAPE_INTERVAL_SECONDS`    | `1800` (30min)    | How often the producer scrapes RSS feeds |
-| `KAFKA_BATCH_TIMEOUT_SECONDS`| `60`              | Consumer waits this long to fill a batch |
-| `KAFKA_BATCH_MAX_SIZE`       | `50`              | Max articles per consumer batch          |
-| `REDIS_HOST`                 | `localhost`       | Redis host for URL dedup set             |
-| `REDIS_PORT`                 | `6379`            | Redis port                               |
-| `REPORT_INTERVAL_SECONDS`    | `3600` (1hr)      | How often reports are regenerated        |
-| `REPORT_DATE_RANGE`          | `7d`              | Date window for report data              |
+All settings can be overridden via environment variables or a `.env` file.
+
+| Variable                          | Default           | Description                              |
+|-----------------------------------|-------------------|------------------------------------------|
+| `POSTGRES_USER`                   | `postgres`        | PostgreSQL username                      |
+| `POSTGRES_PASSWORD`               | `password`        | PostgreSQL password                      |
+| `POSTGRES_HOST`                   | `localhost`       | PostgreSQL host                          |
+| `POSTGRES_PORT`                   | `5432`            | PostgreSQL port                          |
+| `POSTGRES_DATABASE`               | `postgres`        | PostgreSQL database name                 |
+| `NEO4J_URI`                       | `neo4j://localhost:7687` | Neo4j Bolt URI                    |
+| `NEO4J_USER`                      | `neo4j`           | Neo4j username                           |
+| `NEO4J_PASSWORD`                  | *(set in config)* | Neo4j password                           |
+| `REDIS_HOST`                      | `localhost`       | Redis host (dedup + pub/sub + alerts)    |
+| `REDIS_PORT`                      | `6379`            | Redis port                               |
+| `KAFKA_BOOTSTRAP_SERVERS`         | `localhost:9092`  | Kafka broker address                     |
+| `KAFKA_TOPIC`                     | `india-innovates` | Topic for article messages               |
+| `SCRAPE_INTERVAL_SECONDS`         | `1800` (30 min)   | News RSS scrape frequency                |
+| `KAFKA_BATCH_TIMEOUT_SECONDS`     | `60`              | Consumer waits this long to fill a batch |
+| `KAFKA_BATCH_MAX_SIZE`            | `50`              | Max articles per consumer batch          |
+| `REPORT_INTERVAL_SECONDS`         | `3600` (1 hr)     | Report generation frequency              |
+| `REPORT_DATE_RANGE`               | `7d`              | Date window for report data              |
+| `WEATHER_SCRAPE_INTERVAL_SECONDS` | `21600` (6 hr)    | Weather data fetch frequency             |
+| `WEATHER_HISTORICAL_BACKFILL_YEARS`| `5`              | Default years for `--backfill`           |
 
 ---
 
@@ -516,6 +645,7 @@ agents/
     india_impact.py         # Stage 6: India strategic impact analysis agent
     report_orchestrator.py  # Stage 6: Multi-agent orchestrator (4-agent pipeline)
     inference.py            # Stage 7: Causal chain discovery, impact propagation, weak links
+    weather_anomaly.py      # Stage 12: Statistical anomaly detection + trend analysis
 graphs/
     schemas.py              # Pydantic models for all stages
     prompts.py              # LLM prompt templates
@@ -524,6 +654,7 @@ scheduler/
     producer.py             # Kafka producer: periodic RSS scraping → publish
     consumer.py             # Kafka consumer: batch consume → process_articles pipeline
     report_scheduler.py     # Report scheduler: periodic multi-agent report generation
+    weather_producer.py     # Stage 12: Weather data ingestion + anomaly detection (6hr loop)
 api/
     __init__.py             # FastAPI app
     routes/
@@ -532,21 +663,28 @@ api/
         reports.py          # /api/reports endpoint (domain reports + India impact)
         live_feed.py        # /api/live-feed endpoint (SSE + WebSocket)
         visualization.py    # / graph viz + /chat chat UI
+        weather.py          # /api/weather/* endpoints (cities, current, trends, anomalies, monsoon)
 scrapers/
     news_rss.py             # RSS scraper (title dedup, max_per_feed)
+    weather.py              # Stage 12: Open-Meteo API client (forecast, archive, climate)
 models/
     database.py             # SQLAlchemy engine
     scraped_article.py      # Article dedup table
     entity_alias.py         # Persistent merge table
     domain_report.py        # Generated report storage
     domain_weight_cache.py  # Stage 8: Daily cached LLM-generated domain weights
+    weather_observation.py  # Stage 12: Daily weather observations per city
+    weather_anomaly.py      # Stage 12: Detected anomaly event records
+    climate_normal.py       # Stage 12: 30-year monthly baselines per city/variable
 docs/
     plan.md                 # This file
+    weather-plan.md         # Detailed weather integration plan (25 cities, anomaly rules, API details)
     architecture.dot        # Graphviz source → .png/.svg
 alembic/                    # Database migrations
 alembic.ini
-config.py                   # All config: DB, Neo4j, Redis, Kafka, scrape intervals
+config.py                   # All config: DB, Neo4j, Redis, Kafka, scrape intervals, weather
 main.py
+pyproject.toml              # Dependencies managed via uv
 ```
 
 

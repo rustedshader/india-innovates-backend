@@ -12,3 +12,4 @@ wheels/
 
 
 .env
+.weather_cache.sqlite
