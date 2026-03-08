@@ -187,52 +187,67 @@ class WeatherScraper:
         """Fetch historical data for all 25 cities.
 
         Open-Meteo supports bulk requests with arrays of lat/lon.
+        To avoid timeout errors on the archive API, fetches are batched.
         Returns dict mapping city name to DataFrame.
         """
-        lats = [c.lat for c in INDIA_CITIES]
-        lons = [c.lon for c in INDIA_CITIES]
-
-        responses = self.om.weather_api(
-            HISTORICAL_URL,
-            params={
-                "latitude": lats,
-                "longitude": lons,
-                "start_date": start_date,
-                "end_date": end_date,
-                "daily": DAILY_VARIABLES,
-                "timezone": "Asia/Kolkata",
-            },
-        )
-
         result = {}
-        for i, city in enumerate(INDIA_CITIES):
+        chunk_size = 5
+
+        for i in range(0, len(INDIA_CITIES), chunk_size):
+            chunk = INDIA_CITIES[i:i+chunk_size]
+            lats = [c.lat for c in chunk]
+            lons = [c.lon for c in chunk]
+
             try:
-                result[city.name] = self._parse_daily_response(responses[i])
+                responses = self.om.weather_api(
+                    HISTORICAL_URL,
+                    params={
+                        "latitude": lats,
+                        "longitude": lons,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "daily": DAILY_VARIABLES,
+                        "timezone": "Asia/Kolkata",
+                    },
+                )
+
+                for j, city in enumerate(chunk):
+                    result[city.name] = self._parse_daily_response(responses[j])
             except Exception as e:
-                logger.error(f"Failed to parse response for {city.name}: {e}")
+                logger.error(f"Failed to fetch historical data for chunk starting with {chunk[0].name}: {e}")
+
         return result
 
     def fetch_all_cities_forecast(self) -> dict[str, pd.DataFrame]:
-        """Fetch 7-day forecast for all 25 cities in one bulk request."""
-        lats = [c.lat for c in INDIA_CITIES]
-        lons = [c.lon for c in INDIA_CITIES]
-
-        responses = self.om.weather_api(
-            FORECAST_URL,
-            params={
-                "latitude": lats,
-                "longitude": lons,
-                "daily": DAILY_VARIABLES,
-                "timezone": "Asia/Kolkata",
-            },
-        )
-
+        """Fetch 7-day forecast for all 25 cities.
+        
+        To avoid timeout errors, fetches are batched.
+        Returns dict mapping city name to DataFrame.
+        """
         result = {}
-        for i, city in enumerate(INDIA_CITIES):
+        chunk_size = 5
+
+        for i in range(0, len(INDIA_CITIES), chunk_size):
+            chunk = INDIA_CITIES[i:i+chunk_size]
+            lats = [c.lat for c in chunk]
+            lons = [c.lon for c in chunk]
+
             try:
-                result[city.name] = self._parse_daily_response(responses[i])
+                responses = self.om.weather_api(
+                    FORECAST_URL,
+                    params={
+                        "latitude": lats,
+                        "longitude": lons,
+                        "daily": DAILY_VARIABLES,
+                        "timezone": "Asia/Kolkata",
+                    },
+                )
+
+                for j, city in enumerate(chunk):
+                    result[city.name] = self._parse_daily_response(responses[j])
             except Exception as e:
-                logger.error(f"Failed to parse forecast for {city.name}: {e}")
+                logger.error(f"Failed to parse forecast for chunk starting with {chunk[0].name}: {e}")
+                
         return result
 
     # ── Climate normals computation ──────────────────────────────────
