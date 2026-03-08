@@ -2,19 +2,20 @@
 
 ## Vision
 
-An AI-powered intelligence graph that ingests global news, extracts entities and their typed relationships, resolves them across sources, tracks temporal state changes, and enables conversational querying over the knowledge graph. The graph powers strategic Q&A and report generation for decision-makers.
+An AI-powered intelligence graph that ingests global news, extracts entities and their typed relationships, resolves them across sources, tracks temporal state changes, and enables conversational querying over the knowledge graph. The graph powers strategic Q&A, automated report generation, real-time anomaly detection, news prioritisation, and India-focused weather monitoring for decision-makers.
 
 ---
 
 ## Pipeline Architecture
 
-The system runs as **three independent processes** (Docker-ready):
+The system runs as **six independent processes** (Docker-ready):
 
 ```
                            ┌──────────────┐
-                           │  Redis Set   │  URL dedup across processes
+                           │  Redis       │  URL dedup + cluster centroids
+                           │              │  + live-feed pub/sub + alerts
                            └──────┬───────┘
-                                  │ SISMEMBER / SADD
+                                  │ SISMEMBER / SADD / PUBLISH
 ┌─────────────────────────────────┼───────────────────────────────────────┐
 │  PRODUCER  (scheduler/producer.py)         every 30min (configurable)  │
 │                                                                       │
@@ -31,26 +32,48 @@ The system runs as **three independent processes** (Docker-ready):
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  CONSUMER  (scheduler/consumer.py)                  runs continuously  │
 │                                                                       │
-│  GraphBuilder.process_articles(batch)                                  │
+│  Stage A: NewsPriorityAgent.process(batch)                            │
+│  ┌───────────────────────────────────────────────────────────────┐     │
+│  │  Embed (MiniLM) → Cluster (Redis) → Score (LLM) → Postgres  │     │
+│  │  Returns high-importance subset (≥5.0 score)                  │     │
+│  └───────────────────────┬───────────────────────────────────────┘     │
+│                          ▼                                            │
+│  Stage B: GraphBuilder.process_articles(high_importance_batch)         │
 │  ┌───────────────────────────────────────────────────────────────┐     │
 │  │              Extraction Agent (hybrid)                        │     │
 │  │  GLiNER2 (NER+RE) ──▶ LLM Canonicalization ──▶ LLM Enrich   │     │
-│  └───────────────────────────┬───────────────────────────────────┘     │
+│  └───────────────────────┬───────────────────────────────────────┘     │
 │                              ▼                                        │
 │  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐   │
 │  │ Resolution Agent │──▶│ Temporal Agent   │──▶│ Batched UNWIND   │   │
 │  │ (3-Tier Funnel)  │   │ (stub)           │   │ Neo4j + Postgres │   │
 │  └──────────────────┘   └──────────────────┘   └──────────────────┘   │
+│                                                                       │
+│  Publish live-feed events for ALL articles → Redis pub/sub            │
+└───────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  SIGNAL WORKER  (scheduler/signal_worker.py)          every 15min     │
+│                                                                       │
+│  Signal A: Entity mention spikes (Neo4j 7-day same-day baseline)      │
+│  Signal B: New high-connectivity entities (Neo4j degree check)        │
+│  Signal C: Topic cluster spikes (Postgres 7-day baseline)             │
+│  → Save to Postgres (detected_signals) with 6h TTL                    │
 └───────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  API SERVER  (main.py)                                                 │
 │                                                                       │
-│  Neo4j Graph ◀──── /api/graph ──▶ Visualization (vis-network.js)      │
-│       │              (server-side filtering, batched source queries)   │
-│       └──── /api/chat ──▶ Chat Agent (LangGraph Graph RAG)            │
-│              │                    ▲                                    │
-│              └── Postgres ────────┘  article full_text for context     │
+│  /api/graph ──▶ Visualization (vis-network.js)                        │
+│  /api/graph/stats ──▶ Aggregate graph counts by type                  │
+│  /entities/{name}/timeline ──▶ Entity timeline with co-entities       │
+│  /api/chat ──▶ Chat Agent (LangGraph Graph RAG)                       │
+│  /api/reports ──▶ Domain intelligence reports                         │
+│  /api/news ──▶ Prioritised article feed + trending topics             │
+│  /api/signals ──▶ Real-time anomaly signals                           │
+│  /api/weather/* ──▶ Weather monitoring (25 Indian cities)             │
+│  /ws/live-feed ──▶ WebSocket real-time article stream                 │
+│  / ──▶ Interactive vis-network.js frontend                            │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -173,9 +196,10 @@ class ArticleExtraction:
 ### Tier 1: Deterministic Normalization (O(N), no LLM)
 
 1. Normalize: lowercase, strip punctuation, collapse whitespace
-2. Alias table: maintained in Postgres, seeded with common geopolitical aliases, grows over time
+2. Alias table: maintained in Postgres (`entity_aliases`), seeded with common geopolitical aliases, grows over time
 3. Acronym expansion: if both "NATO" and "North Atlantic Treaty Organization" exist → merge
 4. LLM-provided aliases: extraction already provides aliases per entity
+5. Context-type gating: aliases can be type-scoped (`context_type` column) — e.g. "Georgia" resolves to "Georgia (state)" only when type=Location
 
 Note: Substring containment merging (e.g. "Trump" → "Donald Trump") was removed —
 it caused false merges (e.g. "India" → "Indian Ocean"). Short-to-long name merging
@@ -206,7 +230,7 @@ Which pairs refer to the same real-world entity?
 
 ### Persistent Merge Table
 
-Stored in Postgres. Once resolved, never re-evaluated. New batches check table first (O(1) lookup).
+Stored in Postgres (`entity_aliases` table). Once resolved, never re-evaluated. New batches check table first (O(1) lookup). Supports typed and untyped aliases via the `context_type` column.
 
 ### Bonus: Graph-Based Resolution
 
@@ -219,6 +243,9 @@ After all tiers, Neo4j structural similarity:
 
 Attaches time dimension to entities and relationships.
 
+**Current status: stub** — logs temporal markers from extraction but does not create state nodes.
+
+Planned design:
 - Uses article `pub_date` + any temporal markers from extraction
 - Creates State nodes: `(Entity)-[:HAS_STATE {from, to}]->(State)`
 - Detects state transitions (same entity, different state at different time)
@@ -251,7 +278,7 @@ User question + history
       │  │
       ▼  └──▶ Direct Answer (greetings, meta) ──▶ Response
 ┌────────────────┐
-│ Cypher Generator│  NL → Cypher using schema-aware prompt + query templates
+│ Cypher Generator│  NL → 1..N Cypher using schema-aware prompt + query templates
 └───────┬────────┘
         ▼
 ┌────────────────┐
@@ -276,6 +303,8 @@ User question + history
 
 - **Schema-aware Cypher generation**: Prompt includes full Neo4j schema + query templates
   for common patterns ("tell me about X", "how are X and Y related", "what events involve X")
+- **Multi-query decomposition**: Complex questions are decomposed into multiple independent
+  Cypher queries via structured JSON output (CypherQueryPlan with list of CypherQuery)
 - **Neighborhood auto-enrichment**: When initial Cypher returns thin results (just name/type),
   automatically fetches relationships, events, and source articles for mentioned entities
 - **Article content retrieval**: After graph queries, fetches actual article text from Postgres
@@ -283,11 +312,11 @@ User question + history
 - **Conversation history**: Supports follow-up questions with context from previous turns
 - **Safety**: Read-only queries only, mutation keywords rejected
 - **Provenance**: Source articles included in responses when available
+- **Retry with backoff**: LLM calls use exponential backoff retry on transient errors
 
 ### Endpoints
 
 - `POST /api/chat` — JSON: `{question, history[]}` → `{answer, cypher, route}`
-- `GET /chat` — Full chat UI with conversation history, typing indicators, Cypher display
 
 ---
 
@@ -303,6 +332,7 @@ Server-side filtering to handle large graphs:
 | `min_connections`  | 1       | Hide entities with fewer relationships       |
 | `entity_type`     | all     | Filter by type (comma-separated)             |
 | `search`          | —       | Case-insensitive name search                 |
+| `date_range`      | —       | Filter by article recency (7d, 30d, 1y, etc.)|
 
 Only Entity + Event nodes returned (no Article nodes — those are attached as `sources` metadata on click). Nodes ranked by degree (most-connected first).
 
@@ -310,11 +340,16 @@ Only Entity + Event nodes returned (no Article nodes — those are attached as `
 
 Returns total entities, relationships, events, articles, and breakdown by entity type.
 
-### Frontend
+### `/entities/{entity_name}/timeline` — Entity timeline
 
-Filter toolbar with: search box, entity type dropdown, node limit slider (20–500), min connections slider (0–10). Graph re-renders on Apply.
+Returns a chronological timeline for a specific entity: events it's involved in, co-entities, and supporting articles. Supports `limit` and `offset` pagination.
 
----
+### Frontend (`/`)
+
+Interactive vis-network.js HTML UI served by `visualization.py`. Features:
+- Filter toolbar: search box, entity type dropdown, node limit slider (20–500), min connections slider (0–10)
+- Type-colored nodes with size proportional to degree
+- Graph re-renders on Apply
 
 ---
 
@@ -374,6 +409,11 @@ ReportOrchestrator.generate(domain, date_range)
 | global_positioning     | India's position vs competitors, trajectory        |
 | recommendations        | Actionable policy/strategy recommendations         |
 
+### Endpoints
+
+- `GET /api/reports` — List all domains + latest report timestamps
+- `GET /api/reports/{domain}` — Retrieve specific domain report
+
 ---
 
 ## Stage 7: Inference Agent — Cross-Domain Chain Discovery
@@ -414,16 +454,6 @@ InferenceAgent.analyze(report_result)
 | impact_propagations  | Event → downstream entity cascades with hop distance|
 | weak_links           | Bridge entities, domains bridged, risk narratives   |
 
-### Full Orchestrator Pipeline (4 agents)
-
-```
-ReportOrchestrator.generate(domain, date_range)
-    ├── Step 1: ReportAgent          → domain briefing
-    ├── Step 2: IndiaImpactAgent     → India strategic analysis
-    ├── Step 3: InferenceAgent       → causal chains, impact, weak links
-    └── Step 4: Merge all → enriched report
-```
-
 ---
 
 ## Stage 8: Dynamic Domain Weights — LLM-Driven Relevance Scoring
@@ -436,7 +466,7 @@ weights that drift to match what the knowledge graph actually contains.
 ```
 _collect_graph_data(domain, cutoff)
     ├── Check Postgres cache (domain_weight_cache table)
-    │     HIT → use cached weights
+    │     HIT → use cached weights (1 row per domain per day)
     │     MISS ↓
     ├── Sample entity/relation types from Neo4j (~50ms)
     ├── LLM scores each type for domain relevance (structured output)
@@ -451,29 +481,251 @@ No data pulled to Python for filtering.
 
 ---
 
+## Stage 9: News Priority Pipeline — Cross-Batch Clustering + Importance Scoring
+
+### Problem
+
+Raw RSS feeds produce hundreds of articles per cycle. Most are noise (celebrity gossip,
+local crime, sports) that would waste extraction compute and pollute the knowledge graph.
+Additionally, duplicate stories from multiple sources need deduplication before extraction.
+
+### Architecture
+
+The `NewsPriorityAgent` runs inside the Kafka consumer **before** articles reach GraphBuilder:
+
+```
+NewsPriorityAgent.process(batch: list[Article])
+    │
+    ├── Step 1: Embed article titles + descriptions (all-MiniLM-L6-v2)
+    │
+    ├── Step 2: Cluster against Redis-stored centroids (24h rolling window)
+    │     cosine sim ≥ 0.82 → assign to existing cluster
+    │     otherwise → create new cluster
+    │
+    ├── Step 3: Select best representative per cluster
+    │     Score = credibility × log(content_length)
+    │     Source credibility from Postgres (source_config) → Redis cache (1h TTL)
+    │
+    ├── Step 4: LLM scoring (structured output per representative)
+    │     ArticleImportance schema:
+    │       impact_score (0-10)      — structural scale of impact
+    │       novelty_score (0-10)     — historical precedent level
+    │       india_relevance (0-10)   — strategic impact on India
+    │       domain                   — topic classification (17 standard domains)
+    │       cluster_label            — 3-6 word topic label
+    │
+    ├── Step 5: Persist ALL articles to Postgres (with scores)
+    │
+    └── Return: articles with importance_score ≥ 5.0 → GraphBuilder
+```
+
+### Tuning Constants
+
+| Constant                        | Value | Description                              |
+|---------------------------------|-------|------------------------------------------|
+| `CLUSTER_SIMILARITY_THRESHOLD`  | 0.82  | Cosine sim to join existing cluster      |
+| `GRAPH_IMPORTANCE_THRESHOLD`    | 5.0   | Min score to forward to GraphBuilder     |
+| `CLUSTER_TTL_SECONDS`           | 86400 | 24-hour rolling cluster window           |
+| `DEFAULT_CREDIBILITY`           | 0.70  | For unknown news sources                 |
+
+### Domain Classification
+
+Standard domains: geopolitics, defense, economics, technology, energy, health, politics,
+elections, crime, human_interest, environment, science, sports, education, infrastructure,
+judiciary, diplomacy.
+
+### Source Credibility
+
+Per-source credibility scores stored in Postgres (`source_config` table) and cached in
+Redis for 1 hour. Used for cluster representative selection (higher credibility sources
+preferred) and overall scoring. Unknown sources default to 0.70.
+
+---
+
+## Stage 10: Signal / Anomaly Detection
+
+### Problem
+
+Decision-makers need to know when something unusual is happening — an entity suddenly
+trending, a brand-new player appearing with high connectivity, or a topic cluster
+experiencing abnormal growth. These signals complement the knowledge graph with
+real-time alerting.
+
+### Architecture
+
+The `signal_worker.py` runs as a standalone background process every 15 minutes:
+
+```
+signal_worker.py (every 15 minutes)
+    │
+    ├── Signal A: Entity Mention Spikes (Neo4j)
+    │     Compare today's entity-article count vs same-day 7-day baseline
+    │     Laplace smoothing on denominator, skip thin-history entities
+    │     Ratio ≥ 3.0 → medium; ≥ 5.0 → high severity
+    │
+    ├── Signal B: New High-Connectivity Entities (Neo4j)
+    │     Entities first seen within 24h with ≥ 5 graph connections
+    │     Uses first_seen + relationship scan (no full node scan)
+    │
+    ├── Signal C: Topic Cluster Spikes (Postgres)
+    │     6-hour windows, compare against 7-day same-hour baseline
+    │     Ratio ≥ 2.5 with min 3 current articles + min 3h cluster age
+    │
+    └── Persist to Postgres (detected_signals) with 6h TTL
+        → Read by GET /api/signals (zero-computation endpoint)
+```
+
+### Design Choices Addressing Failure Modes
+
+- **Same-day baseline** (not daily average): avoids time-of-day news-cycle bias
+- **MIN_BASELINE_MENTIONS guard**: skips obscure entities with insufficient history
+- **Laplace smoothing**: prevents division-by-zero and dampens small-number false positives
+- **Minimum current-count guard**: a single article can never trigger a spike
+- **Topic spike uses 6h windows** (not 2h): smooths over scraper batch cadence
+- **Signal B uses relationship scan**: no `created_at` property scan avoids full index-less scans
+- **IST normalization**: all time comparisons use UTC+5:30 to align with Indian news cycles
+
+### Tuning Constants
+
+| Constant                          | Value | Description                              |
+|-----------------------------------|-------|------------------------------------------|
+| `ENTITY_SPIKE_WINDOW_HOURS`       | 2     | Current window for entity counts         |
+| `ENTITY_SPIKE_RATIO_THRESHOLD`    | 3.0   | Min smoothed ratio for spike signal      |
+| `ENTITY_MIN_BASELINE_MENTIONS`    | 8     | Skip entities with thin history          |
+| `ENTITY_MIN_CURRENT_MENTIONS`     | 3     | Min articles to fire (prevents noise)    |
+| `LAPLACE_SMOOTH`                  | 1.0   | Denominator smoothing constant           |
+| `NEW_ENTITY_LOOKBACK_HOURS`       | 24    | "New" entity window                      |
+| `NEW_ENTITY_MIN_DEGREE`           | 5     | Min graph connections to be notable      |
+| `TOPIC_SPIKE_WINDOW_HOURS`        | 6     | Wider window for topic cluster counts    |
+| `TOPIC_SPIKE_RATIO_THRESHOLD`     | 2.5   | Min ratio for topic spike                |
+| `TOPIC_MIN_CLUSTER_AGE_HOURS`     | 3     | Brand-new clusters can't "spike"         |
+| `SIGNAL_TTL_HOURS`                | 6     | How long signals stay visible            |
+
+### Endpoint
+
+- `GET /api/signals?signal_type=&severity=&limit=` — Active signals from Postgres
+
+---
+
+## Stage 11: Live Feed — Real-Time Article Streaming
+
+### Architecture
+
+Articles ingested by the consumer are published to Redis pub/sub in real time.
+The API server provides a WebSocket endpoint for frontend consumption.
+
+- **Channel**: `india-innovates:live-feed`
+- **Event payload**: `{url, title, source, thumbnail, pub_date, status, timestamp}`
+- **Endpoint**: `/ws/live-feed` (WebSocket)
+
+All articles are published (not just those forwarded to GraphBuilder), providing
+a complete real-time view of the ingestion pipeline.
+
+---
+
+## Stage 12: Weather Pipeline (Open-Meteo → Anomaly Detection)
+
+### Architecture
+
+```
+WeatherProducer (scheduler/weather_producer.py)
+    │
+    ├── WeatherScraper (scrapers/weather.py)
+    │     ├── fetch_historical()     → EC_Earth3P_HR climate archive
+    │     ├── fetch_forecast()       → 7-day weather forecast
+    │     └── fetch_climate_normals() → 30-year monthly baselines (1991–2020)
+    │     25 Indian cities, 16 weather variables
+    │
+    ├── WeatherAnomalyDetector (agents/weather_anomaly.py)
+    │     ├── compute_anomaly_scores()  → z-scores against climate normals
+    │     ├── detect_heat_waves()       → IMD: Tmax > 40°C for ≥3 consecutive days
+    │     ├── detect_cold_waves()       → IMD: Tmin < 4°C for ≥3 consecutive days
+    │     ├── detect_extreme_rainfall() → IMD: ≥204.5 mm/day
+    │     ├── detect_droughts()         → Soil moisture z-score < -1.5 for ≥14 days
+    │     └── detect_cyclone_proxies()  → Wind speed ≥ 90 km/h + sustained rain
+    │
+    └── WeatherTrendAnalyzer
+          ├── Annual trend (linear regression)
+          ├── Monsoon analysis (Jun–Sep rainfall patterns)
+          └── Extreme frequency tracking
+```
+
+### Data Storage
+
+| Table                  | Contents                                         |
+|------------------------|--------------------------------------------------|
+| `weather_observations` | 25 cities × daily: 16 weather vars + z-scores    |
+| `weather_anomalies`    | Detected events: heat wave, cold wave, drought, etc. |
+| `climate_normals`      | 30-year monthly baselines: mean, std, percentiles |
+
+### Endpoints
+
+| Endpoint                            | Description                                    |
+|-------------------------------------|------------------------------------------------|
+| `GET /api/weather/cities`           | List 25 monitored Indian cities                |
+| `GET /api/weather/current`          | Latest observation + anomaly flags for all cities |
+| `GET /api/weather/trends/{city}`    | Trend analysis (7d, 30d, 1y, 5y periods)      |
+| `GET /api/weather/{city}/anomalies` | Detected weather anomalies for a city          |
+| `GET /api/weather/monsoon`          | Monsoon season analysis (rainfall deficit, etc.)|
+
+### Bootstrap Commands
+
+```bash
+# Compute 30-year climate normals (one-time, ~2-5 min)
+uv run python -m scheduler.weather_producer --bootstrap-normals
+
+# Backfill N years of historical observations (optional)
+uv run python -m scheduler.weather_producer --backfill --years 5
+```
+
+---
+
+## Stage 13: News API — Prioritised Article Access
+
+### Endpoints
+
+| Endpoint                | Query Params                                          | Description                                    |
+|-------------------------|-------------------------------------------------------|------------------------------------------------|
+| `GET /api/news`         | page, per_page, source, domain, min_score, from_date, to_date, q | Paginated, filterable articles sorted by importance then recency |
+| `GET /api/news/top`     | limit, hours                                          | Top N articles by importance in last N hours   |
+| `GET /api/news/topics`  | hours, limit                                          | Trending topic clusters with article counts    |
+| `GET /api/news/sources` | —                                                     | Active news sources with article counts + avg importance |
+
+All endpoints read from Postgres (`scraped_articles` table with priority columns added
+by the NewsPriorityAgent). Zero computation at request time.
+
+---
+
 ## Implementation Phases
 
-| Phase | Scope                                            | Status      |
-|-------|--------------------------------------------------|-------------|
-| 1     | Extraction Agent with typed relations + temporal | ✅ Done      |
-| 2     | Entity Resolution (Tier 1 + 2 + 3)              | ✅ Done      |
-| 3     | Neo4j schema + graph builder                     | ✅ Done      |
-| 4     | API + graph visualization                        | ✅ Done      |
-| 5     | Chat Agent — Graph RAG (LangGraph)               | ✅ Done      |
-| 5b    | Chat: Article content fetching from Postgres     | ✅ Done      |
-| 6     | Kafka pipeline (producer + consumer)             | ✅ Done      |
-| 7     | Graph visualization scaling (server-side filter) | ✅ Done      |
-| 8     | Temporal Agent with state tracking               | Stub        |
-| 9     | Inference Agent — cross-domain chain discovery   | ✅ Done      |
-| 10    | Multi-agent report generation + India impact     | ✅ Done      |
-| 11    | Dynamic domain weights (LLM-driven scoring)      | ✅ Done      |
-| 12    | Weather pipeline (Open-Meteo ingest + anomalies) | ✅ Done      |
+| Phase | Scope                                              | Status      |
+|-------|----------------------------------------------------|-------------|
+| 1     | Extraction Agent with typed relations + temporal   | ✅ Done      |
+| 2     | Entity Resolution (Tier 1 + 2 + 3)                | ✅ Done      |
+| 3     | Neo4j schema + graph builder                       | ✅ Done      |
+| 4     | API + graph visualization                          | ✅ Done      |
+| 5     | Chat Agent — Graph RAG (LangGraph)                 | ✅ Done      |
+| 5b    | Chat: Article content fetching from Postgres       | ✅ Done      |
+| 6     | Kafka pipeline (producer + consumer)               | ✅ Done      |
+| 7     | Graph visualization scaling (server-side filter)   | ✅ Done      |
+| 8     | Temporal Agent with state tracking                 | Stub        |
+| 9     | Inference Agent — cross-domain chain discovery     | ✅ Done      |
+| 10    | Multi-agent report generation + India impact       | ✅ Done      |
+| 11    | Dynamic domain weights (LLM-driven scoring)        | ✅ Done      |
+| 12    | Weather pipeline (Open-Meteo ingest + anomalies)   | ✅ Done      |
+| 13    | News priority pipeline (clustering + LLM scoring)  | ✅ Done      |
+| 14    | Signal / anomaly detection worker                  | ✅ Done      |
+| 15    | Live feed (WebSocket + Redis pub/sub)              | ✅ Done      |
+| 16    | News API (paginated articles, topics, sources)     | ✅ Done      |
+| 17    | Source credibility system (Postgres + Redis cache) | ✅ Done      |
+| 18    | Entity timeline API                                | ✅ Done      |
+| 19    | Interactive vis-network.js frontend                | ✅ Done      |
 
 ---
 
 ## Running the System
 
-The system comprises **5 independent processes** plus required infrastructure services.
+The system comprises **6 independent processes** plus required infrastructure services.
 Each process can run in its own terminal or Docker container.
 
 ### 0. Prerequisites — Infrastructure Services
@@ -533,7 +785,7 @@ uv run python -m scheduler.weather_producer --backfill --years 5
 
 ### 3. Start All Processes
 
-Open **5 terminals**, each from the project root:
+Open **6 terminals**, each from the project root:
 
 ```bash
 # ── Terminal 1: API Server ──────────────────────────────────────────
@@ -548,9 +800,12 @@ uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 uv run python -m scheduler.producer
 
 # ── Terminal 3: News Consumer (Kafka) ───────────────────────────────
-# Consumes article batches from Kafka, runs extraction pipeline
-# (GLiNER2 NER → LLM canonicalization → LLM enrichment → entity
-# resolution → Neo4j + Postgres storage). Publishes live-feed events.
+# Consumes article batches from Kafka. Runs NewsPriorityAgent first
+# (embed → cluster → LLM score → persist ALL to Postgres), then
+# forwards high-importance articles (≥5.0) to GraphBuilder for
+# extraction (GLiNER2 NER → LLM canonicalization → LLM enrichment →
+# entity resolution → Neo4j + Postgres storage).
+# Publishes live-feed events for ALL articles to Redis.
 uv run python -m scheduler.consumer
 
 # ── Terminal 4: Report Scheduler ────────────────────────────────────
@@ -565,6 +820,12 @@ uv run python -m scheduler.report_scheduler
 # anomalies (heat waves, cold waves, extreme rain, droughts, cyclone
 # proxies), stores to Postgres, publishes alerts to Redis.
 uv run python -m scheduler.weather_producer
+
+# ── Terminal 6: Signal Worker ───────────────────────────────────────
+# Detects anomalies every 15 minutes: entity mention spikes (Neo4j
+# 7-day baseline), new high-connectivity entities, topic cluster
+# spikes (Postgres baseline). Persists detected signals with 6h TTL.
+uv run python -m scheduler.signal_worker
 ```
 
 ### Quick-Start (minimal — just API + weather)
@@ -590,6 +851,9 @@ uv run python -m scheduler.weather_producer --once
 # Backfill weather with custom year range:
 uv run python -m scheduler.weather_producer --backfill --years 10
 
+# Reset Kafka topic and/or Redis state for clean test runs:
+uv run python -m scripts.reset --redis --kafka
+
 # Generate a new Alembic migration after model changes:
 uv run alembic revision --autogenerate -m "description"
 uv run alembic upgrade head
@@ -604,6 +868,7 @@ uv run alembic upgrade head
 | 3 | **News Consumer** | `uv run python -m scheduler.consumer` | Continuous | Kafka, Redis, Postgres, Neo4j |
 | 4 | **Report Scheduler** | `uv run python -m scheduler.report_scheduler` | Every 1 hr | Postgres, Neo4j, Redis |
 | 5 | **Weather Producer** | `uv run python -m scheduler.weather_producer` | Every 6 hr | Postgres, Redis |
+| 6 | **Signal Worker** | `uv run python -m scheduler.signal_worker` | Every 15 min | Postgres, Neo4j, Redis |
 
 ### Configuration (config.py / environment variables)
 
@@ -619,7 +884,7 @@ All settings can be overridden via environment variables or a `.env` file.
 | `NEO4J_URI`                       | `neo4j://localhost:7687` | Neo4j Bolt URI                    |
 | `NEO4J_USER`                      | `neo4j`           | Neo4j username                           |
 | `NEO4J_PASSWORD`                  | *(set in config)* | Neo4j password                           |
-| `REDIS_HOST`                      | `localhost`       | Redis host (dedup + pub/sub + alerts)    |
+| `REDIS_HOST`                      | `localhost`       | Redis host (dedup + pub/sub + clusters + alerts) |
 | `REDIS_PORT`                      | `6379`            | Redis port                               |
 | `KAFKA_BOOTSTRAP_SERVERS`         | `localhost:9092`  | Kafka broker address                     |
 | `KAFKA_TOPIC`                     | `india-innovates` | Topic for article messages               |
@@ -630,6 +895,7 @@ All settings can be overridden via environment variables or a `.env` file.
 | `REPORT_DATE_RANGE`               | `7d`              | Date window for report data              |
 | `WEATHER_SCRAPE_INTERVAL_SECONDS` | `21600` (6 hr)    | Weather data fetch frequency             |
 | `WEATHER_HISTORICAL_BACKFILL_YEARS`| `5`              | Default years for `--backfill`           |
+| `SIGNAL_WORKER_INTERVAL_SECONDS`  | `900` (15 min)    | Signal detection frequency               |
 
 ---
 
@@ -637,54 +903,60 @@ All settings can be overridden via environment variables or a `.env` file.
 
 ```
 agents/
-    extraction.py           # Stage 1: Per-article entity/relation extraction
+    extraction.py           # Stage 1: Per-article entity/relation extraction (GLiNER2 + LLM)
     resolution.py           # Stage 2: 3-tier entity resolution funnel
-    temporal.py             # Stage 3: Temporal state tracking
+    temporal.py             # Stage 3: Temporal state tracking (stub)
     chat.py                 # Stage 4: LangGraph chat agent (Graph RAG + article fetching)
     report.py               # Stage 6+8: Domain briefing agent + dynamic domain weights
     india_impact.py         # Stage 6: India strategic impact analysis agent
     report_orchestrator.py  # Stage 6: Multi-agent orchestrator (4-agent pipeline)
     inference.py            # Stage 7: Causal chain discovery, impact propagation, weak links
+    news_priority.py        # Stage 9: Cross-batch topic clustering + LLM importance scoring
     weather_anomaly.py      # Stage 12: Statistical anomaly detection + trend analysis
 graphs/
-    schemas.py              # Pydantic models for all stages
+    schemas.py              # Pydantic models for all stages (extraction, resolution, temporal)
     prompts.py              # LLM prompt templates
     graph_builder.py        # Orchestrates pipeline (process_articles), saves to Neo4j
 scheduler/
     producer.py             # Kafka producer: periodic RSS scraping → publish
-    consumer.py             # Kafka consumer: batch consume → process_articles pipeline
+    consumer.py             # Kafka consumer: priority scoring → extraction → Neo4j pipeline
     report_scheduler.py     # Report scheduler: periodic multi-agent report generation
     weather_producer.py     # Stage 12: Weather data ingestion + anomaly detection (6hr loop)
+    signal_worker.py        # Stage 10: Entity/topic anomaly detection (15min loop)
 api/
-    __init__.py             # FastAPI app
+    __init__.py             # FastAPI app with all router registrations
     routes/
-        graph.py            # /api/graph endpoint
+        graph.py            # /api/graph, /api/graph/stats, /entities/{name}/timeline
         chat.py             # /api/chat endpoint (conversational Q&A)
         reports.py          # /api/reports endpoint (domain reports + India impact)
-        live_feed.py        # /api/live-feed endpoint (SSE + WebSocket)
-        visualization.py    # / graph viz + /chat chat UI
-        weather.py          # /api/weather/* endpoints (cities, current, trends, anomalies, monsoon)
+        news.py             # /api/news, /api/news/top, /api/news/topics, /api/news/sources
+        signals.py          # /api/signals endpoint (anomaly signals)
+        live_feed.py        # /ws/live-feed (WebSocket + Redis pub/sub)
+        weather.py          # /api/weather/* (cities, current, trends, anomalies, monsoon)
+        visualization.py    # / graph viz (vis-network.js interactive frontend)
 scrapers/
     news_rss.py             # RSS scraper (title dedup, max_per_feed)
     weather.py              # Stage 12: Open-Meteo API client (forecast, archive, climate)
 models/
-    database.py             # SQLAlchemy engine
-    scraped_article.py      # Article dedup table
-    entity_alias.py         # Persistent merge table
-    domain_report.py        # Generated report storage
+    database.py             # SQLAlchemy engine + Base + SessionLocal
+    scraped_article.py      # Article storage + priority scoring columns
+    entity_alias.py         # Persistent merge table with context-type gating
+    source_config.py        # Per-source credibility scores (used by NewsPriorityAgent)
+    detected_signal.py      # Anomaly signal records (entity_spike, new_entity, topic_spike)
+    domain_report.py        # Generated report storage (JSON)
     domain_weight_cache.py  # Stage 8: Daily cached LLM-generated domain weights
-    weather_observation.py  # Stage 12: Daily weather observations per city
+    weather_observation.py  # Stage 12: Daily weather observations per city + z-scores
     weather_anomaly.py      # Stage 12: Detected anomaly event records
     climate_normal.py       # Stage 12: 30-year monthly baselines per city/variable
+scripts/
+    reset.py                # Utility: reset Kafka topic and/or Redis state (--redis, --kafka)
 docs/
     plan.md                 # This file
     weather-plan.md         # Detailed weather integration plan (25 cities, anomaly rules, API details)
     architecture.dot        # Graphviz source → .png/.svg
 alembic/                    # Database migrations
 alembic.ini
-config.py                   # All config: DB, Neo4j, Redis, Kafka, scrape intervals, weather
-main.py
+config.py                   # All config: DB, Neo4j, Redis, Kafka, scrape intervals, weather, signals
+main.py                     # Entry point (imports FastAPI app from api/)
 pyproject.toml              # Dependencies managed via uv
 ```
-
-

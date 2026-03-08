@@ -7,6 +7,8 @@ digraph architecture {
     pad=0.5;
     nodesep=0.6;
     ranksep=0.8;
+    nslimit=2;
+    nslimit1=2;
 
     // ── Data Sources ──
     subgraph cluster_sources {
@@ -19,7 +21,7 @@ digraph architecture {
     }
 
     // ── Infrastructure ──
-    redis [label="Redis\n━━━━━━━━━━━━━━━━━\nSeen-URL set\n(cross-process dedup)\nSISMEMBER / SADD\nLive-feed pub/sub", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
+    redis [label="Redis\n━━━━━━━━━━━━━━━━━\nSeen-URL set (dedup)\nCluster centroids (24h)\nSource credibility cache\nLive-feed pub/sub\nWeather alerts", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
 
     kafka [label="Kafka Topic\n(india-innovates)\n━━━━━━━━━━━━━━━━━\nArticle JSON messages\nDecouples scraping\nfrom processing", fillcolor="#E8EAF6", color="#283593", shape=cylinder];
 
@@ -46,6 +48,9 @@ digraph architecture {
         fontcolor="#E65100";
 
         batch_acc [label="Batch Accumulator\n━━━━━━━━━━━━━━━━━\nMax 50 articles\nor 60s timeout\nManual offset commit", fillcolor="#FFF9C4", color="#F9A825"];
+        priority_agent [label="NewsPriorityAgent\n━━━━━━━━━━━━━━━━━━━━━\n• Embed (MiniLM)\n• Cluster (Redis centroids)\n• LLM score (impact/novelty)\n• Persist ALL to Postgres\n• Forward ≥5.0 to pipeline", fillcolor="#FFF9C4", color="#F9A825"];
+
+        batch_acc -> priority_agent [label="article batch", color="#F9A825", fontcolor="#E65100"];
     }
 
     // ── Extraction Agent ──
@@ -86,7 +91,13 @@ digraph architecture {
     merge_table [label="Persistent Merge Table\n(Postgres: entity_alias)\n━━━━━━━━━━━━━━━━━━━━━\ntyped + untyped aliases\nO(1) lookup", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
 
     // ── Article Storage ──
-    article_db [label="Article Storage\n(Postgres: scraped_article)\n━━━━━━━━━━━━━━━━━━━━━\nURL dedup + full_text\nUsed by Chat + Report Agents", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    article_db [label="Article Storage\n(Postgres: scraped_article)\n━━━━━━━━━━━━━━━━━━━━━\nURL dedup + full_text\nimportance_score, domain\ncluster_id, cluster_label", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
+    // ── Source Config ──
+    source_config_db [label="Source Config\n(Postgres: source_config)\n━━━━━━━━━━━━━━━━━━━━━\nPer-source credibility\nscores (0-1)\nCached in Redis (1h)", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
+    // ── Detected Signals ──
+    signals_db [label="Detected Signals\n(Postgres: detected_signal)\n━━━━━━━━━━━━━━━━━━━━━━━\nentity_spike, new_entity\ntopic_spike\n6h TTL, severity levels", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
 
     // ── Weight Cache ──
     weight_cache [label="Domain Weight Cache\n(Postgres)\n━━━━━━━━━━━━━━━━━━━━━\n1 row/domain/day\nLLM-generated weights\nEntity + relation scores", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
@@ -107,6 +118,20 @@ digraph architecture {
 
     // ── Storage ──
     neo4j [label="Neo4j Graph DB\n━━━━━━━━━━━━━━━━━\nEntity, Event, Article\nnodes + RELATES_TO,\nINVOLVED_IN, EVIDENCES", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
+
+    // ── Signal Worker ──
+    subgraph cluster_signal_worker {
+        label="  SIGNAL WORKER  (scheduler/signal_worker.py)  ";
+        labeljust=l;
+        style=filled;
+        fillcolor="#FCE4EC";
+        color="#AD1457";
+        fontcolor="#880E4F";
+
+        sig_entity_spike [label="Entity Mention Spikes\n━━━━━━━━━━━━━━━━━━━━━\n7-day same-day baseline\nLaplace smoothing\nRatio ≥ 3.0 → signal", fillcolor="#F8BBD0", color="#AD1457"];
+        sig_new_entity [label="New High-Connectivity\nEntities\n━━━━━━━━━━━━━━━━━━━━━\nfirst_seen < 24h\ndegree ≥ 5", fillcolor="#F8BBD0", color="#AD1457"];
+        sig_topic_spike [label="Topic Cluster Spikes\n━━━━━━━━━━━━━━━━━━━━━\n6h windows\n7-day same-hour baseline\nRatio ≥ 2.5", fillcolor="#F8BBD0", color="#AD1457"];
+    }
 
     // ── Weather Pipeline ──
     subgraph cluster_weather {
@@ -172,6 +197,9 @@ digraph architecture {
         api_live [label="/api/live-feed\n━━━━━━━━━━━━\nSSE + WebSocket\nRedis pub/sub", fillcolor="#B2EBF2", color="#00838F", shape=box];
 
         api_weather [label="/api/weather/*\n━━━━━━━━━━━━━━━━━\ncities | current\ntrends | anomalies\nmonsoon | climate-trends", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_news [label="/api/news\n━━━━━━━━━━━━━━━━━\nPaginated articles\n/top, /topics, /sources\nFiltered by domain/score", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_signals [label="/api/signals\n━━━━━━━━━━━━━━━━━\nActive anomaly signals\nFilter by type/severity", fillcolor="#B2EBF2", color="#00838F", shape=box];
+        api_timeline [label="/entities/{name}/timeline\n━━━━━━━━━━━━━━━━━━━━━━━\nChronological events\nCo-entities + articles", fillcolor="#B2EBF2", color="#00838F", shape=box];
     }
 
     // ── Chat Agent (LangGraph) ──
@@ -225,7 +253,11 @@ digraph architecture {
 
     // Consumer flow
     kafka -> batch_acc [label="consume\n(batched)", color="#283593", fontcolor="#283593"];
-    batch_acc -> gliner [label="list[Article]", color="#555555"];
+    priority_agent -> gliner [label="high-importance\narticles (≥5.0)", color="#555555"];
+    priority_agent -> article_db [label="persist ALL\nw/ scores", color="#00695C", fontcolor="#00695C", style=dashed, constraint=false];
+    priority_agent -> redis [label="cluster centroids\n+ credibility cache", color="#D32F2F", fontcolor="#D32F2F", style=dashed, dir=both, constraint=false];
+    priority_agent -> source_config_db [label="credibility\nlookup", color="#00695C", fontcolor="#00695C", style=dashed, constraint=false];
+    priority_agent -> groq [label="importance\nscoring", style=dashed, color="#F57F17", dir=both, constraint=false];
 
     // Extraction → Resolution
     enrich -> tier1 [label="list[ArticleExtraction]", color="#555555"];
@@ -261,9 +293,22 @@ digraph architecture {
     api_chat -> router [label="question +\nhistory", color="#E65100", fontcolor="#BF360C"];
     cypher_exec -> neo4j [label="Cypher\nquery", color="#C62828", fontcolor="#C62828", style=dashed];
     fetch_articles -> article_db [label="full_text\nlookup", color="#00695C", fontcolor="#00695C", style=dashed];
-    synthesize -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed];
-    direct -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed];
+    synthesize -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed, constraint=false];
+    direct -> api_chat [label="answer", color="#E65100", fontcolor="#BF360C", style=dashed, constraint=false];
     api_chat -> chat_ui [color="#555555"];
+
+    // Signal worker edges
+    sig_entity_spike -> neo4j [label="7-day baseline\nquery", color="#C62828", fontcolor="#C62828", style=dashed, constraint=false];
+    sig_new_entity -> neo4j [label="first_seen +\ndegree query", color="#C62828", fontcolor="#C62828", style=dashed, constraint=false];
+    sig_topic_spike -> article_db [label="6h window\ncounts", color="#00695C", fontcolor="#00695C", style=dashed, constraint=false];
+    sig_entity_spike -> signals_db [label="save", color="#00695C", fontcolor="#00695C", style=dashed];
+    sig_new_entity -> signals_db [label="save", color="#00695C", fontcolor="#00695C", style=dashed];
+    sig_topic_spike -> signals_db [label="save", color="#00695C", fontcolor="#00695C", style=dashed];
+
+    // News + Signals API edges
+    api_news -> article_db [label="paginated\nquery", color="#00695C", fontcolor="#00695C", style=dashed, constraint=false];
+    api_signals -> signals_db [label="active\nsignals", color="#00695C", fontcolor="#00695C", style=dashed, constraint=false];
+    api_timeline -> neo4j [label="entity\ntimeline", color="#C62828", fontcolor="#C62828", style=dashed, constraint=false];
 
     // Weather pipeline edges
     openmeteo -> weather_scraper [label="REST API\n(3 endpoints)", color="#1565C0", fontcolor="#1565C0"];
@@ -306,9 +351,11 @@ digraph architecture {
         l7  [label="🔷  Chat Agent (LangGraph)"];
         l8  [label="🔶  Kafka Pipeline"];
         l9  [label="🔺  Redis (dedup + pub/sub + alerts)"];
-        l10 [label="🟩  Postgres (articles, weights, reports)"];
+        l10 [label="🟩  Postgres (articles, weights, reports, signals)"];
         l11 [label="🌦  Weather Pipeline (Open-Meteo → anomaly detection)"];
+        l12 [label="📰  News Priority (embed → cluster → LLM score)"];
+        l13 [label="🚨  Signal Worker (spike detection, 15min cycle)"];
 
-        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 -> l8 -> l9 -> l10 -> l11 [style=invis];
+        l1 -> l2 -> l3 -> l4 -> l5 -> l6 -> l7 -> l8 -> l9 -> l10 -> l11 -> l12 -> l13 [style=invis];
     }
 }
