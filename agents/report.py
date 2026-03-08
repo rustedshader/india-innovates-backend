@@ -163,7 +163,7 @@ class ReportAgent:
     def __init__(self, model: str = "openai/gpt-oss-20b"):
         self.llm = ChatGroq(model_name=model, temperature=0.3, max_tokens=4096)
         self.weight_llm = ChatGroq(
-            model_name=model, temperature=0.1, max_tokens=1024,
+            model_name=model, temperature=0.1, max_tokens=2048,
         ).with_structured_output(DomainWeights, method="json_schema")
         self.driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
         self.parser = JsonOutputParser(pydantic_object=DomainBriefing)
@@ -337,7 +337,7 @@ Examples for the "{domain}" domain:
                 WHERE a.name IN $names AND b.name IN $names
                 RETURN collect(DISTINCT {
                     source: a.name, target: b.name,
-                    type: r.type, causal: r.causal, temporal: r.temporal,
+                    type: r.type, causal: r.causal,
                     confidence: r.confidence
                 }) AS relations
             """, names=entity_names).single()
@@ -420,7 +420,6 @@ Examples for the "{domain}" domain:
         relation_lines = "\n".join(
             f"- {r['source']} → [{r['type']}] → {r['target']}"
             + (f" (causal)" if r.get("causal") else "")
-            + (f" [{r.get('temporal', '')}]" if r.get("temporal") else "")
             for r in graph_data["relations"][:30]
         )
 

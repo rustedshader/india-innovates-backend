@@ -7,11 +7,12 @@ India-connected entities, then synthesizes strategic insights via LLM.
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 import time
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.output_parsers import JsonOutputParser
 from langchain_groq import ChatGroq
 from neo4j import GraphDatabase
 from pydantic import BaseModel, Field
@@ -129,9 +130,11 @@ class IndiaImpactAgent:
     """Analyzes domain briefings from India's strategic perspective."""
 
     def __init__(self, model: str = "openai/gpt-oss-20b"):
-        self.llm = ChatGroq(model_name=model, temperature=0.3, max_tokens=4096)
+        self.llm = ChatGroq(model_name=model, temperature=0.3, max_tokens=8192)
+        self.structured_llm = ChatGroq(
+            model_name=model, temperature=0.3, max_tokens=8192,
+        ).with_structured_output(IndiaImpactAnalysis, method="json_schema")
         self.driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
-        self.parser = JsonOutputParser(pydantic_object=IndiaImpactAnalysis)
         logger.info("IndiaImpactAgent initialized")
 
     def close(self):
@@ -272,8 +275,8 @@ RULES:
 - Focus on actionable insights, not generic observations
 - Consider India's relationships with all mentioned countries/entities
 - Assess both direct and indirect (second-order) effects on India
-
-{self.parser.get_format_instructions()}
+- Keep each recommendation as a SEPARATE string in the recommendations list
+- Keep each field value concise to avoid hitting token limits
 """
 
         # Build compact user prompt pieces
@@ -379,20 +382,52 @@ RULES:
             HumanMessage(content=user_prompt),
         ]
 
-        response = _llm_invoke_with_retry(self.llm, messages)
+        # Try structured output first (schema-enforced at API level)
         try:
-            analysis = self.parser.parse(response.content)
+            analysis_obj: IndiaImpactAnalysis = self.structured_llm.invoke(messages)
+            analysis = analysis_obj.model_dump() if hasattr(analysis_obj, 'model_dump') else analysis_obj.dict()
         except Exception as e:
-            logger.error(f"Failed to parse India impact analysis for {domain}: {e}")
-            analysis = {
-                "executive_summary": response.content if response else "Analysis failed.",
-                "strategic_assessment": {"summary": "", "implications": []},
-                "transparency_insights": [],
-                "national_advantages": [],
-                "risks": [],
-                "global_positioning": [],
-                "recommendations": [],
-            }
+            logger.warning(f"Structured output failed for {domain}, falling back to free-form + parse: {e}")
+            # Fallback: free-form LLM call with manual JSON extraction
+            try:
+                response = _llm_invoke_with_retry(self.llm, messages)
+                analysis = self._extract_json(response.content)
+            except Exception as e2:
+                logger.error(f"Failed to parse India impact analysis for {domain}: {e2}")
+                analysis = {
+                    "executive_summary": "India impact analysis could not be generated.",
+                    "strategic_assessment": {"summary": "", "implications": []},
+                    "transparency_insights": [],
+                    "national_advantages": [],
+                    "risks": [],
+                    "global_positioning": [],
+                    "recommendations": [],
+                }
 
         logger.info(f"  India impact analysis complete for {domain}")
         return analysis
+
+    @staticmethod
+    def _extract_json(text: str) -> dict:
+        """Best-effort JSON extraction from LLM response text."""
+        # Try direct parse
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        # Try extracting JSON block from markdown fences
+        match = re.search(r'```(?:json)?\s*\n?(\{.*?})\s*```', text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except json.JSONDecodeError:
+                pass
+        # Try finding the outermost { ... }
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            try:
+                return json.loads(text[start:end + 1])
+            except json.JSONDecodeError:
+                pass
+        raise ValueError("Could not extract valid JSON from LLM response")

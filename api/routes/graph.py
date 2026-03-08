@@ -193,6 +193,105 @@ def get_graph(
     return {"nodes": unique_nodes, "edges": edges}
 
 
+@router.get("/entities/{entity_name}/timeline")
+def entity_timeline(
+    entity_name: str,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Chronological event timeline for an entity.
+
+    Returns all events the entity participated in, with co-entities and
+    source articles per event, ordered by date descending.
+
+    Pagination via ?limit=N&offset=N.
+
+    Source deduplication: we collect by url (unique identifier) and carry
+    title/source/pub_date alongside it — avoids the unpredictable behaviour
+    of collect(DISTINCT {map}) in older Neo4j versions where map equality
+    is structural and can produce duplicates.
+    """
+    with driver.session() as session:
+        # Total count for pagination metadata (cheap — no source fetch)
+        count_result = session.run("""
+            MATCH (e:Entity {name: $name})-[:INVOLVED_IN]->(ev:Event)
+            RETURN count(ev) AS total
+        """, name=entity_name).single()
+
+        total = count_result["total"] if count_result else 0
+        if total == 0:
+            return {"entity": {"name": entity_name}, "total": 0, "timeline": []}
+
+        # Fetch entity metadata
+        entity_result = session.run("""
+            MATCH (e:Entity {name: $name})
+            RETURN e.type AS etype LIMIT 1
+        """, name=entity_name).single()
+        entity_type = entity_result["etype"] if entity_result else None
+
+        # Main timeline query — paginated with SKIP / LIMIT
+        # Sources: collect by url to guarantee uniqueness across Neo4j versions.
+        rows = session.run("""
+            MATCH (e:Entity {name: $name})-[:INVOLVED_IN]->(ev:Event)
+            OPTIONAL MATCH (co:Entity)-[:INVOLVED_IN]->(ev)
+            WHERE co.name <> $name
+            WITH ev, collect(DISTINCT co.name) AS co_entities
+            OPTIONAL MATCH (a:Article)-[:EVIDENCES]->(ev)
+            WITH ev, co_entities,
+                 collect(DISTINCT a.url)   AS src_urls,
+                 collect(DISTINCT a.title) AS src_titles,
+                 collect(DISTINCT a.source) AS src_sources,
+                 collect(DISTINCT a.pub_date) AS src_dates
+            ORDER BY ev.date DESC, ev.name ASC
+            SKIP toInteger($offset)
+            LIMIT toInteger($limit)
+            RETURN ev.name        AS event_name,
+                   ev.type        AS event_type,
+                   ev.date        AS event_date,
+                   ev.description AS event_description,
+                   co_entities,
+                   src_urls, src_titles, src_sources, src_dates
+        """, name=entity_name, offset=offset, limit=limit).data()
+
+        timeline = []
+        for row in rows:
+            # Zip source arrays back into dicts; filter out None url rows
+            urls = row["src_urls"] or []
+            titles = row["src_titles"] or []
+            sources_names = row["src_sources"] or []
+            pub_dates = row["src_dates"] or []
+
+            # Pad shorter lists so zip is safe
+            max_len = max(len(urls), len(titles), len(sources_names), len(pub_dates), 1)
+            urls       = (urls       + [None] * max_len)[:max_len]
+            titles     = (titles     + [None] * max_len)[:max_len]
+            sources_names = (sources_names + [None] * max_len)[:max_len]
+            pub_dates  = (pub_dates  + [None] * max_len)[:max_len]
+
+            article_sources = [
+                {"url": u, "title": t, "source": s, "pub_date": d}
+                for u, t, s, d in zip(urls, titles, sources_names, pub_dates)
+                if u  # url is our unique key — skip rows where it's None
+            ]
+
+            timeline.append({
+                "event_name": row["event_name"],
+                "event_type": row["event_type"],
+                "date": row["event_date"],
+                "description": row["event_description"],
+                "co_entities": [c for c in (row["co_entities"] or []) if c],
+                "sources": article_sources,
+            })
+
+        return {
+            "entity": {"name": entity_name, "type": entity_type},
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "timeline": timeline,
+        }
+
+
 @router.get("/graph/stats")
 def get_graph_stats():
     """Return aggregate stats about the graph (for display)."""

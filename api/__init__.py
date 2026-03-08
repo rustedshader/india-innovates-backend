@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from api.routes import graph, visualization, chat, live_feed, reports, weather, news
+from api.routes import graph, visualization, chat, live_feed, reports, weather, news, signals
 
 
 @asynccontextmanager
@@ -18,3 +18,4 @@ app.include_router(live_feed.router)
 app.include_router(reports.router)
 app.include_router(weather.router)
 app.include_router(news.router)
+app.include_router(signals.router)
