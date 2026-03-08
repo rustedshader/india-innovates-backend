@@ -154,7 +154,7 @@ class IndiaImpactAgent:
             # Traverse from India node — 1-2 hops via RELATES_TO / PART_OF
             result = session.run("""
                 MATCH (india:Entity)
-                WHERE toLower(india.name) = 'india'
+                WHERE lower(india.name) = 'india'
                 OPTIONAL MATCH (india)-[:RELATES_TO|PART_OF*1..2]-(connected:Entity)
                 WITH collect(DISTINCT india.name) + collect(DISTINCT connected.name) AS names
                 UNWIND names AS name
@@ -169,7 +169,7 @@ class IndiaImpactAgent:
             seed_result = session.run("""
                 UNWIND $seeds AS seed_name
                 MATCH (e:Entity)
-                WHERE toLower(e.name) = toLower(seed_name)
+                WHERE lower(e.name) = lower(seed_name)
                 RETURN collect(DISTINCT e.name) AS matched
             """, seeds=seed_list).single()
 

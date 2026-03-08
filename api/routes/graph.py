@@ -60,7 +60,7 @@ def get_graph(
             params["entity_types"] = types
 
         if search:
-            where_clauses.append("toLower(e.name) CONTAINS toLower($search)")
+            where_clauses.append("lower(e.name) CONTAINS lower($search)")
             params["search"] = search
 
         # Date range filter — only include entities evidenced by recent articles

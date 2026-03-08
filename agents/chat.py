@@ -105,7 +105,7 @@ Query patterns for common question types:
 
    Query 1a — outgoing relationships:
    MATCH (e:Entity)
-   WHERE toLower(e.name) = toLower("X")
+   WHERE lower(e.name) = lower("X")
    OPTIONAL MATCH (e)-[r:RELATES_TO]->(t:Entity)
    RETURN e.name AS entity, e.type AS type,
           collect(DISTINCT {{relation: r.type, target: t.name, target_type: t.type}}) AS outgoing
@@ -113,7 +113,7 @@ Query patterns for common question types:
 
    Query 1b — incoming relationships:
    MATCH (e:Entity)
-   WHERE toLower(e.name) = toLower("X")
+   WHERE lower(e.name) = lower("X")
    OPTIONAL MATCH (e)<-[r2:RELATES_TO]-(s:Entity)
    RETURN e.name AS entity, e.type AS type,
           collect(DISTINCT {{relation: r2.type, source: s.name, source_type: s.type}}) AS incoming
@@ -121,7 +121,7 @@ Query patterns for common question types:
 
    Query 1c — events and articles:
    MATCH (e:Entity)
-   WHERE toLower(e.name) = toLower("X")
+   WHERE lower(e.name) = lower("X")
    OPTIONAL MATCH (e)-[:INVOLVED_IN]->(ev:Event)
    WITH e, collect(DISTINCT {{event: ev.name, date: ev.date, status: ev.status}}) AS events
    OPTIONAL MATCH (a:Article)-[:EVIDENCES]->(e)
@@ -131,7 +131,7 @@ Query patterns for common question types:
 
 2. "How are X and Y related":
    MATCH (a:Entity), (b:Entity)
-   WHERE toLower(a.name) CONTAINS toLower("X") AND toLower(b.name) CONTAINS toLower("Y")
+   WHERE lower(a.name) CONTAINS lower("X") AND lower(b.name) CONTAINS lower("Y")
    OPTIONAL MATCH p = (a)-[:RELATES_TO*1..3]-(b)
    RETURN a.name, b.name, [r IN relationships(p) | {{type: r.type, causal: r.causal}}] AS rels,
           [n IN nodes(p) | n.name] AS path
@@ -139,13 +139,13 @@ Query patterns for common question types:
 
 3. "Who/what does X sanction/trade with/etc":
    MATCH (e:Entity)-[r:RELATES_TO]->(t:Entity)
-   WHERE toLower(e.name) CONTAINS toLower("X") AND r.type = "sanctions"
+   WHERE lower(e.name) CONTAINS lower("X") AND r.type = "sanctions"
    RETURN e.name, r.type, t.name, t.type
    LIMIT 25
 
 4. "What events involve X":
    MATCH (e:Entity)-[:INVOLVED_IN]->(ev:Event)
-   WHERE toLower(e.name) CONTAINS toLower("X")
+   WHERE lower(e.name) CONTAINS lower("X")
    OPTIONAL MATCH (a:Article)-[:EVIDENCES]->(ev)
    RETURN ev.name, ev.date, ev.status, e.name,
           collect(DISTINCT a.title) AS source_articles
@@ -153,10 +153,10 @@ Query patterns for common question types:
 
 Rules:
 - Return ONLY valid Cypher READ queries (no mutations).
-- Use case-insensitive matching with toLower() or CONTAINS for entity names.
+- Use case-insensitive matching with lower() or CONTAINS for entity names.
 - For exact entity lookups (e.g. a country name), prefer `=` over `CONTAINS` to avoid matching too many entities.
-  GOOD: toLower(e.name) = toLower("india")
-  BAD:  toLower(e.name) CONTAINS toLower("india")  — this also matches "Indian Oil Corporation", "Indian Ocean", etc.
+  GOOD: lower(e.name) = lower("india")
+  BAD:  lower(e.name) CONTAINS lower("india")  — this also matches "Indian Oil Corporation", "Indian Ocean", etc.
   Use CONTAINS only when you need substring/fuzzy matching.
 - ALWAYS use :RELATES_TO with r.type for relationship filtering. Never use dynamic edge labels.
 - NEVER combine more than 2 OPTIONAL MATCH clauses in a single query. Multiple OPTIONAL MATCHes
@@ -170,10 +170,10 @@ Rules:
 
 Search term rules (CRITICAL):
 - Use INDIVIDUAL KEYWORDS in CONTAINS, not compound phrases.
-  GOOD: toLower(e.name) CONTAINS toLower("iran")
-  BAD:  toLower(e.name) CONTAINS toLower("iran war")
-  GOOD: toLower(e.name) CONTAINS toLower("oil")
-  BAD:  toLower(e.name) CONTAINS toLower("oil price")
+  GOOD: lower(e.name) CONTAINS lower("iran")
+  BAD:  lower(e.name) CONTAINS lower("iran war")
+  GOOD: lower(e.name) CONTAINS lower("oil")
+  BAD:  lower(e.name) CONTAINS lower("oil price")
 - Entity names in the graph are short labels like "Iran", "United States", "OPEC", "Crude Oil".
   They do NOT contain full phrases like "iran war" or "oil price impact".
 - When a user says "iran war impact on oil prices", search for "iran" and "oil" separately.
