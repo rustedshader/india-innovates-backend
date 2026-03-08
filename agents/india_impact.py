@@ -13,6 +13,7 @@ import re
 import time
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_groq import ChatGroq
 from neo4j import GraphDatabase
 from pydantic import BaseModel, Field
@@ -131,9 +132,7 @@ class IndiaImpactAgent:
 
     def __init__(self, model: str = "openai/gpt-oss-20b"):
         self.llm = ChatGroq(model_name=model, temperature=0.3, max_tokens=8192)
-        self.structured_llm = ChatGroq(
-            model_name=model, temperature=0.3, max_tokens=8192,
-        ).with_structured_output(IndiaImpactAnalysis, method="json_schema")
+        self.parser = JsonOutputParser(pydantic_object=IndiaImpactAnalysis)
         self.driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
         logger.info("IndiaImpactAgent initialized")
 
@@ -277,6 +276,8 @@ RULES:
 - Assess both direct and indirect (second-order) effects on India
 - Keep each recommendation as a SEPARATE string in the recommendations list
 - Keep each field value concise to avoid hitting token limits
+
+{self.parser.get_format_instructions()}
 """
 
         # Build compact user prompt pieces
@@ -382,15 +383,13 @@ RULES:
             HumanMessage(content=user_prompt),
         ]
 
-        # Try structured output first (schema-enforced at API level)
+        response = _llm_invoke_with_retry(self.llm, messages)
+        
         try:
-            analysis_obj: IndiaImpactAnalysis = self.structured_llm.invoke(messages)
-            analysis = analysis_obj.model_dump() if hasattr(analysis_obj, 'model_dump') else analysis_obj.dict()
+            analysis = self.parser.parse(response.content)
         except Exception as e:
-            logger.warning(f"Structured output failed for {domain}, falling back to free-form + parse: {e}")
-            # Fallback: free-form LLM call with manual JSON extraction
+            logger.warning(f"Structured parser failed for {domain}, falling back to manual extract: {e}")
             try:
-                response = _llm_invoke_with_retry(self.llm, messages)
                 analysis = self._extract_json(response.content)
             except Exception as e2:
                 logger.error(f"Failed to parse India impact analysis for {domain}: {e2}")
