@@ -644,21 +644,12 @@ import re
 # ---------------------------------------------------------------------------
 
 def _clean_cypher(raw: str) -> str:
-    """Strip trailing JSON artifacts and code fences from LLM-generated Cypher."""
+    """Strip code fences from LLM-generated Cypher."""
     s = raw.strip()
     # Remove markdown code fences
     if s.startswith("```"):
         s = re.sub(r"^```(?:cypher)?\s*\n?", "", s)
         s = re.sub(r"\n?```\s*$", "", s)
-    # Strip trailing JSON artifacts like }]}" or "}
-    s = re.sub(r'[}\]"]+\s*$', '', s)
-    # Restore a closing brace only if query ends with LIMIT <n (i.e. it was valid)
-    # Actually, just ensure balanced braces aren't broken:
-    # Count braces in Cypher map literals { } — they should be balanced
-    opens = s.count('{')
-    closes = s.count('}')
-    if closes < opens:
-        s += '}' * (opens - closes)
     return s.strip()
 
 
