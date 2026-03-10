@@ -1,0 +1,69 @@
+digraph extraction_agent {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11, style=filled, shape=box, rounded=true];
+    edge [fontname="Helvetica", fontsize=9];
+    bgcolor="white";
+    pad=0.4;
+    nodesep=0.5;
+    ranksep=0.7;
+    label="Extraction Agent — Hybrid GLiNER2 + LLM (Per Article)";
+    labelloc=t;
+    fontsize=14;
+    fontcolor="#333333";
+
+    // Input
+    article [label="Article\n(title + full_text)", fillcolor="#E3F2FD", color="#1565C0"];
+
+    // Phase A
+    subgraph cluster_phase_a {
+        label="Phase A: GLiNER2 (205M params, ~50ms, CPU)";
+        style=filled; fillcolor="#FFF3E0"; color="#EF6C00"; fontcolor="#BF360C";
+
+        ner [label="NER\n━━━━━━━━━━━\n9 entity types\nText-span grounded\nConfidence scores", fillcolor="#FFE0B2", color="#EF6C00"];
+        re [label="Relation Extraction\n━━━━━━━━━━━━━━━\n26 relation types\n(head, tail) tuples\nFixed vocabulary", fillcolor="#FFE0B2", color="#EF6C00"];
+    }
+
+    // Phase B
+    subgraph cluster_phase_b {
+        label="Phase B: LLM Canonicalization (~500 tokens)";
+        style=filled; fillcolor="#FFF3E0"; color="#EF6C00"; fontcolor="#BF360C";
+
+        canon [label="Canonical Names\n━━━━━━━━━━━━━━━\n\"Trump\" → \"Donald Trump\"\n\"the US\" → \"United States\"", fillcolor="#FFE0B2", color="#EF6C00"];
+        aliases [label="Alias Generation\n━━━━━━━━━━━━━━━\n\"PRC\" → [\"China\",\n \"People's Republic\"]", fillcolor="#FFE0B2", color="#EF6C00"];
+        type_fix [label="Type Correction\n━━━━━━━━━━━━━━━\nconfidence < 0.80\n→ LLM verifies type\ne.g. City≠Country", fillcolor="#FFE0B2", color="#EF6C00"];
+    }
+
+    // Phase C
+    subgraph cluster_phase_c {
+        label="Phase C: LLM Enrichment (reasoning)";
+        style=filled; fillcolor="#FFF3E0"; color="#EF6C00"; fontcolor="#BF360C";
+
+        causal [label="Causal Flags\n━━━━━━━━━━━━━\nPer relation:\ncause-effect?", fillcolor="#FFE0B2", color="#EF6C00"];
+        temporal [label="Temporal Markers\n━━━━━━━━━━━━━━━\nDates/periods\n\"2024-03\", \"ongoing\"", fillcolor="#FFE0B2", color="#EF6C00"];
+        events [label="Event Extraction\n━━━━━━━━━━━━━━━\nNamed events (max 5)\nStatus + involved\nentities", fillcolor="#FFE0B2", color="#EF6C00"];
+    }
+
+    // Output
+    output [label="ArticleExtraction\n━━━━━━━━━━━━━━━━━━━━━\nEntities (canonical, typed)\nRelations (causal, temporal)\nEvents (named, status)", fillcolor="#C8E6C9", color="#2E7D32"];
+
+    // LLM
+    groq [label="Groq LLM", fillcolor="#FFFDE7", color="#F57F17", shape=box3d];
+
+    // Edges
+    article -> ner [color="#555555"];
+    article -> re [color="#555555"];
+    ner -> canon [label="entities +\nconfidence", color="#EF6C00"];
+    re -> canon [label="relations", color="#EF6C00"];
+    canon -> aliases [color="#EF6C00"];
+    canon -> type_fix [color="#EF6C00"];
+    type_fix -> causal [label="canonicalized\nentities + rels", color="#EF6C00"];
+    aliases -> causal [style=invis];
+    causal -> temporal [color="#EF6C00"];
+    temporal -> events [color="#EF6C00"];
+    events -> output [color="#2E7D32"];
+
+    // LLM connections
+    canon -> groq [style=dashed, color="#F57F17", dir=both];
+    causal -> groq [style=dashed, color="#F57F17", dir=both];
+}

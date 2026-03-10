@@ -1,0 +1,57 @@
+digraph news_priority {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11, style=filled, shape=box, rounded=true];
+    edge [fontname="Helvetica", fontsize=9];
+    bgcolor="white";
+    pad=0.4;
+    nodesep=0.5;
+    ranksep=0.7;
+    label="News Priority Agent — Cross-Batch Clustering + Importance Scoring";
+    labelloc=t;
+    fontsize=14;
+    fontcolor="#333333";
+
+    // Input
+    input [label="Article Batch\n(from Kafka consumer)\nMax 50 articles / 60s", fillcolor="#E3F2FD", color="#1565C0"];
+
+    // Steps
+    embed [label="Step 1: Embed\n━━━━━━━━━━━━━━━━━━━\nall-MiniLM-L6-v2\nTitle + description", fillcolor="#FFF9C4", color="#F9A825"];
+
+    cluster [label="Step 2: Cluster\n━━━━━━━━━━━━━━━━━━━\nRedis-stored centroids\n(24h rolling window)\ncosine ≥ 0.82 → join\notherwise → new cluster", fillcolor="#FFF9C4", color="#F9A825"];
+
+    representative [label="Step 3: Select Representative\n━━━━━━━━━━━━━━━━━━━━━━━━━\nBest per cluster:\ncredibility × log(content_len)\nSource credibility from\nPostgres → Redis (1h cache)", fillcolor="#FFF9C4", color="#F9A825"];
+
+    llm_score [label="Step 4: LLM Scoring\n━━━━━━━━━━━━━━━━━━━━━━━━━\nPer representative:\n• impact_score (0-10)\n• novelty_score (0-10)\n• india_relevance (0-10)\n• domain (17 categories)\n• cluster_label (3-6 words)", fillcolor="#FFF9C4", color="#F9A825"];
+
+    persist [label="Step 5: Persist ALL\n━━━━━━━━━━━━━━━━━━━\nALL articles → Postgres\nWith scores + cluster info", fillcolor="#FFF9C4", color="#F9A825"];
+
+    // Gate
+    gate [label="importance ≥ 5.0?", fillcolor="#FFEBEE", color="#D32F2F", shape=diamond];
+
+    // Outputs
+    high [label="High-Importance Articles\n→ GraphBuilder Pipeline", fillcolor="#C8E6C9", color="#2E7D32"];
+    low [label="Low-Importance Articles\n(stored, not processed)", fillcolor="#ECEFF1", color="#37474F"];
+
+    // Data stores
+    redis [label="Redis\n(centroids + cache)", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
+    postgres [label="PostgreSQL\n(scraped_articles +\nsource_config)", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    groq [label="Groq LLM", fillcolor="#FFFDE7", color="#F57F17", shape=box3d];
+
+    // Flow
+    input -> embed [color="#555555"];
+    embed -> cluster [color="#F9A825"];
+    cluster -> representative [color="#F9A825"];
+    representative -> llm_score [color="#F9A825"];
+    llm_score -> persist [color="#F9A825"];
+    persist -> gate [color="#555555"];
+    gate -> high [label="yes", color="#2E7D32"];
+    gate -> low [label="no", color="#37474F"];
+
+    // Data store edges
+    cluster -> redis [label="read/write\ncentroids", color="#D32F2F", style=dashed, dir=both];
+    representative -> redis [label="credibility\ncache", color="#D32F2F", style=dashed];
+    representative -> postgres [label="source\nconfig", color="#00695C", style=dashed];
+    persist -> postgres [label="save all\narticles", color="#00695C", style=dashed];
+    llm_score -> groq [style=dashed, color="#F57F17", dir=both];
+}

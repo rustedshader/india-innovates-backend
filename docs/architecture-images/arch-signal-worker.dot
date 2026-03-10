@@ -1,0 +1,73 @@
+digraph signal_worker {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11, style=filled, shape=box, rounded=true];
+    edge [fontname="Helvetica", fontsize=9];
+    bgcolor="white";
+    pad=0.4;
+    nodesep=0.5;
+    ranksep=0.7;
+    label="Signal Worker — Anomaly Detection (Every 15 Minutes)";
+    labelloc=t;
+    fontsize=14;
+    fontcolor="#333333";
+
+    // Trigger
+    trigger [label="Cron Trigger\n(every 15 min)", fillcolor="#E3F2FD", color="#1565C0", shape=oval];
+
+    // Signal A
+    subgraph cluster_signal_a {
+        label="Signal A: Entity Mention Spikes";
+        style=filled; fillcolor="#FCE4EC"; color="#AD1457"; fontcolor="#880E4F";
+
+        spike_query [label="Neo4j Query\n━━━━━━━━━━━━━━━━━━━━━\nToday's entity-article count\nvs same-day 7-day baseline\nLaplace smoothing", fillcolor="#F8BBD0", color="#AD1457"];
+        spike_eval [label="Threshold Check\n━━━━━━━━━━━━━━━━━━━━━\nRatio ≥ 3.0 → medium\nRatio ≥ 5.0 → high\nMin 8 baseline mentions\nMin 3 current articles", fillcolor="#F8BBD0", color="#AD1457"];
+
+        spike_query -> spike_eval [color="#AD1457"];
+    }
+
+    // Signal B
+    subgraph cluster_signal_b {
+        label="Signal B: New High-Connectivity Entities";
+        style=filled; fillcolor="#FCE4EC"; color="#AD1457"; fontcolor="#880E4F";
+
+        new_query [label="Neo4j Query\n━━━━━━━━━━━━━━━━━━━━━\nfirst_seen < 24h\nRelationship degree scan\n(no full node scan)", fillcolor="#F8BBD0", color="#AD1457"];
+        new_eval [label="Threshold Check\n━━━━━━━━━━━━━━━━━━━━━\ndegree ≥ 5\n→ Notable new entity", fillcolor="#F8BBD0", color="#AD1457"];
+
+        new_query -> new_eval [color="#AD1457"];
+    }
+
+    // Signal C
+    subgraph cluster_signal_c {
+        label="Signal C: Topic Cluster Spikes";
+        style=filled; fillcolor="#FCE4EC"; color="#AD1457"; fontcolor="#880E4F";
+
+        topic_query [label="Postgres Query\n━━━━━━━━━━━━━━━━━━━━━\n6h window article counts\nvs same-hour 7-day baseline\nIST normalization", fillcolor="#F8BBD0", color="#AD1457"];
+        topic_eval [label="Threshold Check\n━━━━━━━━━━━━━━━━━━━━━\nRatio ≥ 2.5\nMin 3 articles\nMin 3h cluster age", fillcolor="#F8BBD0", color="#AD1457"];
+
+        topic_query -> topic_eval [color="#AD1457"];
+    }
+
+    // Storage
+    signals_db [label="Detected Signals\n(Postgres)\n━━━━━━━━━━━━━━━━━━━━━━━\nentity_spike, new_entity\ntopic_spike\n6h TTL, severity levels", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    neo4j [label="Neo4j", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
+    postgres [label="PostgreSQL\n(scraped_articles)", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
+    // API
+    api [label="GET /api/signals\n━━━━━━━━━━━━━━━━━━━\nFilter: type, severity\nZero-computation read", fillcolor="#B2EBF2", color="#00838F"];
+
+    // Edges
+    trigger -> spike_query [color="#555555"];
+    trigger -> new_query [color="#555555"];
+    trigger -> topic_query [color="#555555"];
+
+    spike_query -> neo4j [label="7-day\nbaseline", color="#C62828", style=dashed];
+    new_query -> neo4j [label="first_seen +\ndegree", color="#C62828", style=dashed];
+    topic_query -> postgres [label="6h window\ncounts", color="#00695C", style=dashed];
+
+    spike_eval -> signals_db [label="save", color="#00695C", style=dashed];
+    new_eval -> signals_db [label="save", color="#00695C", style=dashed];
+    topic_eval -> signals_db [label="save", color="#00695C", style=dashed];
+
+    api -> signals_db [label="read active", color="#00695C", style=dashed];
+}

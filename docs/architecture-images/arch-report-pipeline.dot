@@ -1,0 +1,98 @@
+digraph report_pipeline {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11, style=filled, shape=box, rounded=true];
+    edge [fontname="Helvetica", fontsize=9];
+    bgcolor="white";
+    pad=0.4;
+    nodesep=0.5;
+    ranksep=0.7;
+    label="Report Generation — 4-Agent Pipeline (Per Domain, Hourly)";
+    labelloc=t;
+    fontsize=14;
+    fontcolor="#333333";
+
+    // Orchestrator
+    orchestrator [label="ReportOrchestrator\n━━━━━━━━━━━━━━━━━━━━━\ngenerate(domain, date_range)\nGraceful degradation", fillcolor="#C8E6C9", color="#2E7D32"];
+
+    // Stage 0
+    subgraph cluster_stage0 {
+        label="Stage 0: Dynamic Weights";
+        style=filled; fillcolor="#F1F8E9"; color="#558B2F"; fontcolor="#33691E";
+
+        weight_gen [label="Weight Generator\n━━━━━━━━━━━━━━━━━━━━━━\n• Sample entity/relation types\n  from Neo4j (~50ms)\n• LLM scores relevance\n• Cached in Postgres (24h)\n• Fallback: static config", fillcolor="#DCEDC8", color="#558B2F"];
+    }
+
+    // Stage 1
+    subgraph cluster_stage1 {
+        label="Step 1: ReportAgent";
+        style=filled; fillcolor="#F1F8E9"; color="#558B2F"; fontcolor="#33691E";
+
+        report_score [label="Scored Entity Query\n━━━━━━━━━━━━━━━━━━━\nCypher w/ weight maps\nDomain entities + rels", fillcolor="#DCEDC8", color="#558B2F"];
+        report_articles [label="Fetch Articles\n━━━━━━━━━━━━━━━\nPostgres full-text\nDomain-filtered", fillcolor="#DCEDC8", color="#558B2F"];
+        report_synth [label="LLM Synthesis\n━━━━━━━━━━━━━━━\n→ DomainBriefing", fillcolor="#DCEDC8", color="#558B2F"];
+
+        report_score -> report_articles [color="#558B2F"];
+        report_articles -> report_synth [color="#558B2F"];
+    }
+
+    // Stage 2
+    subgraph cluster_stage2 {
+        label="Step 2: IndiaImpactAgent";
+        style=filled; fillcolor="#F1F8E9"; color="#558B2F"; fontcolor="#33691E";
+
+        india_discover [label="Discover India Entities\n━━━━━━━━━━━━━━━━━━━━━━━\nNeo4j 1-2 hop traversal\nfrom India + seed set", fillcolor="#DCEDC8", color="#558B2F"];
+        india_subgraph [label="Extract India Subgraph\n━━━━━━━━━━━━━━━━━━━━━━━\nFilter graph data for\nIndia connections", fillcolor="#DCEDC8", color="#558B2F"];
+        india_synth [label="LLM Assessment\n━━━━━━━━━━━━━━━━━━━━━━━\nToken-budgeted (~3700)\n→ IndiaImpactAnalysis", fillcolor="#DCEDC8", color="#558B2F"];
+
+        india_discover -> india_subgraph [color="#558B2F"];
+        india_subgraph -> india_synth [color="#558B2F"];
+    }
+
+    // Stage 3
+    subgraph cluster_stage3 {
+        label="Step 3: InferenceAgent";
+        style=filled; fillcolor="#F1F8E9"; color="#558B2F"; fontcolor="#33691E";
+
+        causal [label="Causal Chain Discovery\n━━━━━━━━━━━━━━━━━━━━━━━\nRELATES_TO*2..5 traversal\ncross-domain scoring\nTop 5 chains", fillcolor="#DCEDC8", color="#558B2F"];
+        impact [label="Impact Propagation\n━━━━━━━━━━━━━━━━━━━━━━━\nBFS from events (3 hops)\nDownstream entity cascades", fillcolor="#DCEDC8", color="#558B2F"];
+        weak [label="Weak Link Detection\n━━━━━━━━━━━━━━━━━━━━━━━\nBridge entities across\ndomains (fragile SPOFs)", fillcolor="#DCEDC8", color="#558B2F"];
+        narrate [label="LLM Narrative\n━━━━━━━━━━━━━━━━━━━━━━━\nAnalyst-readable output\n→ InferenceAnalysis", fillcolor="#DCEDC8", color="#558B2F"];
+
+        causal -> narrate [color="#558B2F"];
+        impact -> narrate [color="#558B2F"];
+        weak -> narrate [color="#558B2F"];
+    }
+
+    // Output
+    output [label="Enriched Domain Report\n━━━━━━━━━━━━━━━━━━━━━━━━\nBriefing + India Impact\n+ Inference Analysis", fillcolor="#C8E6C9", color="#2E7D32"];
+
+    // Data stores
+    neo4j [label="Neo4j", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
+    postgres [label="PostgreSQL", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    groq [label="Groq LLM", fillcolor="#FFFDE7", color="#F57F17", shape=box3d];
+
+    // Pipeline flow
+    orchestrator -> weight_gen [color="#2E7D32"];
+    weight_gen -> report_score [label="weights", color="#558B2F"];
+    report_synth -> india_discover [label="ReportResult", color="#558B2F"];
+    india_synth -> causal [label="+ IndiaImpact", color="#558B2F"];
+    narrate -> output [color="#2E7D32"];
+    output -> postgres [label="save report", color="#00695C", style=dashed];
+
+    // Data store edges
+    weight_gen -> neo4j [label="sample\ntypes", color="#C62828", style=dashed];
+    weight_gen -> postgres [label="cache", color="#00695C", style=dashed, dir=both];
+    report_score -> neo4j [label="scored\nquery", color="#C62828", style=dashed];
+    report_articles -> postgres [label="articles", color="#00695C", style=dashed];
+    india_discover -> neo4j [label="traversal", color="#C62828", style=dashed];
+    causal -> neo4j [label="chain\nquery", color="#C62828", style=dashed];
+    impact -> neo4j [label="BFS", color="#C62828", style=dashed];
+    weak -> neo4j [label="bridge\nquery", color="#C62828", style=dashed];
+
+    // LLM edges
+    weight_gen -> groq [style=dashed, color="#F57F17", dir=both];
+    report_synth -> groq [style=dashed, color="#F57F17", dir=both];
+    india_synth -> groq [style=dashed, color="#F57F17", dir=both];
+    narrate -> groq [style=dashed, color="#F57F17", dir=both];
+}

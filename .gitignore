@@ -13,3 +13,4 @@ wheels/
 
 .env
 .weather_cache.sqlite
+.DS_Store

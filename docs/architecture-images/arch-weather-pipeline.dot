@@ -1,0 +1,92 @@
+digraph weather_pipeline {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11, style=filled, shape=box, rounded=true];
+    edge [fontname="Helvetica", fontsize=9];
+    bgcolor="white";
+    pad=0.4;
+    nodesep=0.5;
+    ranksep=0.7;
+    label="Weather Pipeline — Open-Meteo Ingest + Anomaly Detection (25 Indian Cities)";
+    labelloc=t;
+    fontsize=14;
+    fontcolor="#333333";
+
+    // Source
+    openmeteo [label="Open-Meteo API\n━━━━━━━━━━━━━━━━━━━\nForecast (7-day)\nArchive (1940–present)\nClimate (30-yr normals)\nFree, no API key", fillcolor="#E3F2FD", color="#1565C0"];
+
+    // Scraper
+    subgraph cluster_scraper {
+        label="WeatherScraper";
+        style=filled; fillcolor="#B2DFDB"; color="#00695C"; fontcolor="#004D40";
+
+        fetch_hist [label="fetch_historical()\n━━━━━━━━━━━━━━━━━━\nEC_Earth3P_HR model\nDaily observations", fillcolor="#E0F2F1", color="#00695C"];
+        fetch_forecast [label="fetch_forecast()\n━━━━━━━━━━━━━━━━━━\n7-day forecast\n16 weather variables", fillcolor="#E0F2F1", color="#00695C"];
+        fetch_normals [label="fetch_climate_normals()\n━━━━━━━━━━━━━━━━━━━━━━━\n30-year baselines\n(1991–2020)", fillcolor="#E0F2F1", color="#00695C"];
+    }
+
+    // Anomaly Detector
+    subgraph cluster_anomaly {
+        label="WeatherAnomalyDetector";
+        style=filled; fillcolor="#B2DFDB"; color="#00695C"; fontcolor="#004D40";
+
+        zscore [label="Z-Score Computation\n━━━━━━━━━━━━━━━━━━━\nPer variable vs\nclimate normals", fillcolor="#E0F2F1", color="#00695C"];
+        heat [label="Heat Wave Detection\n━━━━━━━━━━━━━━━━━━━\nIMD: Tmax > 40°C\nfor ≥ 3 consecutive days", fillcolor="#FFCDD2", color="#D32F2F"];
+        cold [label="Cold Wave Detection\n━━━━━━━━━━━━━━━━━━━\nIMD: Tmin < 4°C\nfor ≥ 3 consecutive days", fillcolor="#BBDEFB", color="#1565C0"];
+        rain [label="Extreme Rainfall\n━━━━━━━━━━━━━━━━━━━\nIMD: ≥ 204.5 mm/day", fillcolor="#B3E5FC", color="#0277BD"];
+        drought [label="Drought Detection\n━━━━━━━━━━━━━━━━━━━\nSoil moisture z < -1.5\nfor ≥ 14 days", fillcolor="#FFE0B2", color="#EF6C00"];
+        cyclone [label="Cyclone Proxy\n━━━━━━━━━━━━━━━━━━━\nWind ≥ 90 km/h\n+ sustained rain", fillcolor="#E1BEE7", color="#7B1FA2"];
+    }
+
+    // Trend Analyzer
+    subgraph cluster_trend {
+        label="WeatherTrendAnalyzer";
+        style=filled; fillcolor="#B2DFDB"; color="#00695C"; fontcolor="#004D40";
+
+        annual [label="Annual Trend\n(linear regression)", fillcolor="#E0F2F1", color="#00695C"];
+        monsoon [label="Monsoon Analysis\n(Jun–Sep rainfall)", fillcolor="#E0F2F1", color="#00695C"];
+        extreme_freq [label="Extreme Frequency\nTracking", fillcolor="#E0F2F1", color="#00695C"];
+    }
+
+    // Storage
+    weather_obs [label="Weather Observations\n(Postgres)\n━━━━━━━━━━━━━━━━━━\n25 cities × daily\n16 vars + z-scores", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    weather_anom [label="Weather Anomalies\n(Postgres)\n━━━━━━━━━━━━━━━━━━\nHeat/cold wave, drought\nExtreme rain, cyclone\nSeverity + z-score", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    climate_db [label="Climate Normals\n(Postgres)\n━━━━━━━━━━━━━━━━━━\n30-yr monthly baselines\nmean, std, percentiles", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
+    redis [label="Redis\n(weather alerts)", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
+
+    // API
+    api [label="API Endpoints\n━━━━━━━━━━━━━━━━━━━\n/cities  /current\n/trends  /anomalies\n/monsoon", fillcolor="#B2EBF2", color="#00838F"];
+
+    // Edges
+    openmeteo -> fetch_hist [label="REST", color="#1565C0"];
+    openmeteo -> fetch_forecast [label="REST", color="#1565C0"];
+    openmeteo -> fetch_normals [label="REST", color="#1565C0"];
+
+    fetch_hist -> zscore [label="daily DataFrame", color="#00695C"];
+    fetch_forecast -> zscore [label="daily DataFrame", color="#00695C"];
+    fetch_normals -> climate_db [label="save normals", color="#00695C", style=dashed];
+    climate_db -> zscore [label="load normals", color="#00695C", style=dashed];
+
+    zscore -> heat [color="#00695C"];
+    zscore -> cold [color="#00695C"];
+    zscore -> rain [color="#00695C"];
+    zscore -> drought [color="#00695C"];
+    zscore -> cyclone [color="#00695C"];
+
+    zscore -> weather_obs [label="upsert obs\n+ z-scores", color="#00695C", style=dashed];
+    heat -> weather_anom [color="#00695C", style=dashed];
+    cold -> weather_anom [color="#00695C", style=dashed];
+    rain -> weather_anom [color="#00695C", style=dashed];
+    drought -> weather_anom [color="#00695C", style=dashed];
+    cyclone -> weather_anom [color="#00695C", style=dashed];
+    heat -> redis [label="alert", color="#D32F2F", style=dashed];
+
+    fetch_hist -> annual [label="historical\nDataFrame", color="#00695C"];
+    fetch_hist -> monsoon [color="#00695C"];
+    fetch_hist -> extreme_freq [color="#00695C"];
+
+    api -> weather_obs [style=dashed, color="#00695C"];
+    api -> weather_anom [style=dashed, color="#00695C"];
+    api -> climate_db [style=dashed, color="#00695C"];
+}

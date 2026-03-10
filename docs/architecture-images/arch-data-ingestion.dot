@@ -1,0 +1,65 @@
+digraph data_ingestion {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11, style=filled, shape=box, rounded=true];
+    edge [fontname="Helvetica", fontsize=9];
+    bgcolor="white";
+    pad=0.4;
+    nodesep=0.5;
+    ranksep=0.7;
+    label="Data Ingestion Pipeline — RSS → Kafka → Consumer → Neo4j";
+    labelloc=t;
+    fontsize=14;
+    fontcolor="#333333";
+
+    // Sources
+    rss [label="RSS Feeds\n(TOI, NDTV, Hindu,\nET, Livemint, ...)", fillcolor="#E3F2FD", color="#1565C0"];
+
+    // Producer
+    subgraph cluster_producer {
+        label="PRODUCER (every 30min)";
+        style=filled; fillcolor="#E8F5E9"; color="#2E7D32"; fontcolor="#1B5E20";
+
+        scraper [label="Scraper\n━━━━━━━━━━━━━━━━━\nFetch RSS + full text\nTitle-based dedup\nmax_per_feed limiter", fillcolor="#C8E6C9", color="#2E7D32"];
+        publisher [label="Kafka Publisher\n━━━━━━━━━━━━━━━━━\nRedis dedup check\nJSON serialize\nacks=all, retries=3", fillcolor="#C8E6C9", color="#2E7D32"];
+        scraper -> publisher [label="list[Article]", color="#2E7D32"];
+    }
+
+    // Infrastructure
+    redis [label="Redis\n(URL dedup)", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
+    kafka [label="Kafka Topic\n(india-innovates)", fillcolor="#E8EAF6", color="#283593", shape=cylinder];
+
+    // Consumer
+    subgraph cluster_consumer {
+        label="CONSUMER (continuous)";
+        style=filled; fillcolor="#FFFDE7"; color="#F9A825"; fontcolor="#E65100";
+
+        batch [label="Batch Accumulator\n━━━━━━━━━━━━━━━━━━━\nMax 50 articles\nor 60s timeout\nManual offset commit", fillcolor="#FFF9C4", color="#F9A825"];
+        priority [label="NewsPriorityAgent\n━━━━━━━━━━━━━━━━━━━━━\nEmbed → Cluster → Score\nForward ≥ 5.0", fillcolor="#FFF9C4", color="#F9A825"];
+        extraction [label="Extraction Agent\n━━━━━━━━━━━━━━━━━━━━━\nGLiNER2 + LLM\n(3 phases)", fillcolor="#FFF3E0", color="#EF6C00"];
+        resolution [label="Resolution Agent\n━━━━━━━━━━━━━━━━━━━━━\n3-Tier Funnel\n(deterministic→embed→LLM)", fillcolor="#F8EAF6", color="#7B1FA2"];
+        temporal [label="Temporal Agent\n(stub)", fillcolor="#E8EAF6", color="#283593"];
+        writer [label="Batched Neo4j Writer\n━━━━━━━━━━━━━━━━━━━━━━━\n6 UNWIND queries/batch\nWeighted avg confidence\nevidence_count tracking", fillcolor="#FFCDD2", color="#C62828"];
+
+        batch -> priority [label="article batch", color="#F9A825"];
+        priority -> extraction [label="high-importance\n(≥ 5.0)", color="#555555"];
+        extraction -> resolution [label="ArticleExtraction", color="#555555"];
+        resolution -> temporal [label="resolved", color="#555555"];
+        temporal -> writer [label="passthrough", color="#555555"];
+    }
+
+    // Storage
+    neo4j [label="Neo4j Graph DB\n━━━━━━━━━━━━━━━━━\nEntity, Event, Article\nRELATES_TO, EVIDENCES", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
+    postgres [label="PostgreSQL\n(scraped_articles)", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    live_redis [label="Redis\n(live-feed pub/sub)", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
+
+    // Edges
+    rss -> scraper [label="URLs", color="#555555"];
+    publisher -> redis [label="SISMEMBER\n(dedup)", color="#D32F2F", style=dashed, dir=both];
+    publisher -> kafka [label="article JSON", color="#283593"];
+    kafka -> batch [label="consume", color="#283593"];
+    priority -> postgres [label="persist ALL\nw/ scores", color="#00695C", style=dashed];
+    writer -> neo4j [label="6 UNWIND\nqueries", color="#C62828"];
+    writer -> postgres [label="save articles", color="#00695C", style=dashed];
+    priority -> live_redis [label="publish ALL\nto live-feed", color="#D32F2F", style=dashed];
+}

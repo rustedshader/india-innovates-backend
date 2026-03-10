@@ -1,0 +1,79 @@
+digraph resolution_agent {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11, style=filled, shape=box, rounded=true];
+    edge [fontname="Helvetica", fontsize=9];
+    bgcolor="white";
+    pad=0.4;
+    nodesep=0.5;
+    ranksep=0.7;
+    label="Resolution Agent — 3-Tier Entity Resolution Funnel";
+    labelloc=t;
+    fontsize=14;
+    fontcolor="#333333";
+
+    // Input
+    input [label="list[ArticleExtraction]\n(from Extraction Agent)", fillcolor="#E3F2FD", color="#1565C0"];
+
+    // Tier 1
+    subgraph cluster_tier1 {
+        label="Tier 1: Deterministic (O(N), no LLM)";
+        style=filled; fillcolor="#F8EAF6"; color="#7B1FA2"; fontcolor="#4A148C";
+
+        normalize [label="Normalize\n━━━━━━━━━━━━━━━\nlowercase, strip\npunctuation, collapse\nwhitespace", fillcolor="#F3E5F5", color="#7B1FA2"];
+        alias_lookup [label="Alias Table Lookup\n━━━━━━━━━━━━━━━━━━━\nPostgres entity_aliases\nSeeded + growing\nContext-type gating", fillcolor="#F3E5F5", color="#7B1FA2"];
+        acronym [label="Acronym Expansion\n━━━━━━━━━━━━━━━━━━━\n\"NATO\" ↔ \"North Atlantic\nTreaty Organization\"", fillcolor="#F3E5F5", color="#7B1FA2"];
+        llm_aliases [label="LLM-Provided Aliases\n━━━━━━━━━━━━━━━━━━━\nFrom extraction Phase B\nDirect merge", fillcolor="#F3E5F5", color="#7B1FA2"];
+
+        normalize -> alias_lookup [color="#7B1FA2"];
+        alias_lookup -> acronym [color="#7B1FA2"];
+        acronym -> llm_aliases [color="#7B1FA2"];
+    }
+
+    // Tier 2
+    subgraph cluster_tier2 {
+        label="Tier 2: Embedding Similarity (O(N log N), no LLM)";
+        style=filled; fillcolor="#F8EAF6"; color="#7B1FA2"; fontcolor="#4A148C";
+
+        embed [label="Embed Entity Names\n━━━━━━━━━━━━━━━━━━━\nall-MiniLM-L6-v2\n(80MB, CPU)", fillcolor="#F3E5F5", color="#7B1FA2"];
+        type_block [label="Type Blocking\n━━━━━━━━━━━━━━━━━\nPerson↔Person only\n~8× reduction", fillcolor="#F3E5F5", color="#7B1FA2"];
+        faiss [label="FAISS ANN Index\n━━━━━━━━━━━━━━━━━\n> 0.95 → auto-merge\n0.80–0.95 → Tier 3\n< 0.80 → different", fillcolor="#F3E5F5", color="#7B1FA2"];
+
+        embed -> type_block [color="#7B1FA2"];
+        type_block -> faiss [color="#7B1FA2"];
+    }
+
+    // Tier 3
+    subgraph cluster_tier3 {
+        label="Tier 3: LLM Disambiguation (O(K), K ≪ N)";
+        style=filled; fillcolor="#F8EAF6"; color="#7B1FA2"; fontcolor="#4A148C";
+
+        batch_pairs [label="Batch 20 Pairs\n━━━━━━━━━━━━━━━━━━━\n\"Bank of China\" vs\n\"People's Bank of China\"\n\"Georgia\" vs \"Georgia\"", fillcolor="#F3E5F5", color="#7B1FA2"];
+        llm_decide [label="LLM Decision\n━━━━━━━━━━━━━━━━━\nSame / Different\nper pair", fillcolor="#F3E5F5", color="#7B1FA2"];
+
+        batch_pairs -> llm_decide [color="#7B1FA2"];
+    }
+
+    // Merge Table
+    merge_table [label="Persistent Merge Table\n(Postgres: entity_alias)\n━━━━━━━━━━━━━━━━━━━━━━\nTyped + untyped aliases\nO(1) lookup, never re-evaluated", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+
+    // Output
+    output [label="Resolved Extractions\n→ Temporal Agent → Neo4j", fillcolor="#C8E6C9", color="#2E7D32"];
+
+    // LLM
+    groq [label="Groq LLM", fillcolor="#FFFDE7", color="#F57F17", shape=box3d];
+
+    // Edges
+    input -> normalize [color="#555555"];
+    llm_aliases -> embed [label="~60-70%\nresolved", color="#555555"];
+    faiss -> batch_pairs [label="candidates\n(sim 0.80–0.95)", color="#7B1FA2"];
+    llm_decide -> output [color="#2E7D32"];
+
+    // Merge table interactions
+    alias_lookup -> merge_table [label="lookup", color="#00695C", style=dashed, dir=both];
+    faiss -> merge_table [label="save merges", color="#00695C", style=dashed];
+    llm_decide -> merge_table [label="save merges", color="#00695C", style=dashed];
+
+    // LLM connection
+    llm_decide -> groq [style=dashed, color="#F57F17", dir=both];
+}

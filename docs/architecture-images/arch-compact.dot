@@ -1,0 +1,96 @@
+digraph compact_architecture {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11, style=filled, shape=box, rounded=true];
+    edge [fontname="Helvetica", fontsize=9];
+    bgcolor="white";
+    pad=0.4;
+    nodesep=0.5;
+    ranksep=0.7;
+    label="Global Ontology Engine — Compact Architecture";
+    labelloc=t;
+    fontsize=14;
+    fontcolor="#333333";
+
+    // ── Data Sources ──
+    subgraph cluster_sources {
+        label="Data Sources";
+        style=dashed; color="#888888"; fontcolor="#555555";
+        rss [label="RSS Feeds\n(8 Indian sources)", fillcolor="#E3F2FD", color="#1565C0"];
+        openmeteo [label="Open-Meteo API", fillcolor="#E3F2FD", color="#1565C0"];
+    }
+
+    // ── Infrastructure ──
+    redis [label="Redis", fillcolor="#FFEBEE", color="#D32F2F", shape=cylinder];
+    kafka [label="Kafka", fillcolor="#E8EAF6", color="#283593", shape=cylinder];
+    neo4j [label="Neo4j\nGraph DB", fillcolor="#FCE4EC", color="#C62828", shape=cylinder];
+    postgres [label="PostgreSQL", fillcolor="#E0F2F1", color="#00695C", shape=cylinder];
+    groq [label="Groq LLM API", fillcolor="#FFFDE7", color="#F57F17", shape=box3d];
+
+    // ── Pipeline Blocks ──
+    producer [label="Producer\n━━━━━━━━━━━━━━━━━\nRSS Scraper → Kafka\n(30min cycle)", fillcolor="#C8E6C9", color="#2E7D32"];
+    consumer [label="Consumer Pipeline\n━━━━━━━━━━━━━━━━━━━━━━━\nNews Priority → Extraction\n→ Resolution → Neo4j Writer", fillcolor="#FFF9C4", color="#F9A825"];
+    weather [label="Weather Pipeline\n━━━━━━━━━━━━━━━━━━━\nScraper → Anomaly Detector\n→ Trend Analyzer", fillcolor="#B2DFDB", color="#00695C"];
+    signals [label="Signal Worker\n━━━━━━━━━━━━━━━━━\nEntity/Topic Spikes\nNew Entity Detection\n(15min cycle)", fillcolor="#F8BBD0", color="#AD1457"];
+    reports [label="Report Pipeline\n━━━━━━━━━━━━━━━━━━━━━━━\nWeights → Report → India\nImpact → Inference\n(hourly per domain)", fillcolor="#C8E6C9", color="#2E7D32"];
+
+    // ── API ──
+    subgraph cluster_api {
+        label="FastAPI Backend";
+        style=filled; fillcolor="#E0F7FA"; color="#00838F"; fontcolor="#006064";
+        api [label="/graph  /chat  /reports\n/news  /signals  /weather\n/live-feed  /timeline", fillcolor="#B2EBF2", color="#00838F"];
+    }
+
+    // ── Chat Agent ──
+    chat [label="Chat Agent\n(LangGraph)\n━━━━━━━━━━━━━━━\nNL → Cypher → Synthesis", fillcolor="#FFE0B2", color="#E65100"];
+
+    // ── Frontend ──
+    subgraph cluster_frontend {
+        label="Frontend (React + Vite + TypeScript)";
+        style=filled; fillcolor="#ECEFF1"; color="#37474F"; fontcolor="#263238";
+
+        graph_viz [label="Knowledge Graph\n(vis-network.js)\n━━━━━━━━━━━━━━━━━━━\nSearch, type filter\nNode limit, date range\nType-colored nodes", fillcolor="#CFD8DC", color="#37474F"];
+        map_view [label="Geospatial Map\n(Leaflet)\n━━━━━━━━━━━━━━━━━━━\nCountry GeoJSON\nEntity markers\nEdge polylines", fillcolor="#CFD8DC", color="#37474F"];
+        chat_ui [label="Chat Panel\n━━━━━━━━━━━━━━━━━\nAI Q&A (Markdown)\nCypher display\nConversation history", fillcolor="#CFD8DC", color="#37474F"];
+        dashboard [label="Dashboard Grid\n(react-grid-layout)\n━━━━━━━━━━━━━━━━━━━\nWeather · News Feed\nSignals · Topics\nDomain Reports", fillcolor="#CFD8DC", color="#37474F"];
+
+        // 2x2 grid layout
+        graph_viz -> chat_ui [style=invis];
+        map_view -> dashboard [style=invis];
+        {rank=same; graph_viz; map_view;}
+        {rank=same; chat_ui; dashboard;}
+    }
+
+    // Pull frontend under the left side
+    producer -> graph_viz [style=invis];
+
+    // ── Edges ──
+    rss -> producer [color="#555555"];
+    openmeteo -> weather [color="#1565C0"];
+    producer -> kafka [label="articles", color="#283593"];
+    producer -> redis [label="dedup", color="#D32F2F", style=dashed, dir=both];
+    kafka -> consumer [label="batched", color="#283593"];
+    consumer -> neo4j [label="entities\nrelations", color="#C62828"];
+    consumer -> postgres [label="articles\nscores", color="#00695C", style=dashed];
+    consumer -> redis [label="clusters\ncache", color="#D32F2F", style=dashed, dir=both];
+    consumer -> groq [label="extraction\nscoring", color="#F57F17", style=dashed, dir=both];
+    weather -> postgres [label="obs, anomalies\nnormals", color="#00695C", style=dashed];
+    weather -> redis [label="alerts", color="#D32F2F", style=dashed];
+    signals -> neo4j [label="queries", color="#C62828", style=dashed];
+    signals -> postgres [label="save/read\nsignals", color="#00695C", style=dashed, dir=both];
+    reports -> neo4j [label="graph\nqueries", color="#C62828", style=dashed];
+    reports -> postgres [label="articles\nweights\nreports", color="#00695C", style=dashed, dir=both];
+    reports -> groq [label="synthesis", color="#F57F17", style=dashed, dir=both];
+    api -> chat [label="questions", color="#E65100"];
+    chat -> neo4j [label="Cypher", color="#C62828", style=dashed];
+    chat -> postgres [label="articles", color="#00695C", style=dashed];
+    chat -> groq [label="NL↔Cypher", color="#F57F17", style=dashed, dir=both];
+    chat -> api [label="answers", color="#E65100", style=dashed];
+    api -> neo4j [label="subgraph", color="#C62828", style=dashed];
+    api -> postgres [label="data", color="#00695C", style=dashed];
+    api -> redis [label="pub/sub", color="#D32F2F", style=dashed];
+    api -> graph_viz [color="#555555"];
+    api -> map_view [color="#555555"];
+    api -> chat_ui [color="#555555"];
+    api -> dashboard [color="#555555"];
+}
