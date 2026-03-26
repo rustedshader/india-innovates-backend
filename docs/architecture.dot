@@ -16,7 +16,7 @@ digraph architecture {
         style=dashed;
         color="#888888";
         fontcolor="#555555";
-        rss [label="RSS Feeds\n(TOI, NDTV, Hindu,\nET, Livemint, ...)", fillcolor="#E3F2FD", color="#1565C0"];
+        rss [label="RSS Feeds (31 sources)\n(NDTV, Hindu, Livemint,\nIndia Today, India TV,\nBBC, WashPost, ...)", fillcolor="#E3F2FD", color="#1565C0"];
         openmeteo [label="Open-Meteo API\n━━━━━━━━━━━━━━━━━\nForecast (7-day)\nArchive (1940–present)\nClimate (30-yr normals)\nFree, no API key", fillcolor="#E3F2FD", color="#1565C0"];
     }
 

@@ -119,10 +119,11 @@ class InferenceAgent:
     end produces analyst-readable narratives from the structured results.
     """
 
-    def __init__(self, model: str = "openai/gpt-oss-20b"):
+    def __init__(self, model: str = "openai/gpt-oss-20b", entity_classifier=None):
         self.llm = ChatGroq(model_name=model, temperature=0.3, max_tokens=4096)
         self.driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
         self.parser = JsonOutputParser(pydantic_object=InferenceAnalysis)
+        self.entity_classifier = entity_classifier
         logger.info("InferenceAgent initialized")
 
     def close(self):
@@ -345,7 +346,17 @@ class InferenceAgent:
                 # Map entity types to domain names
                 domains = set()
                 for nt in record["neighbor_types"]:
-                    domains.add(DOMAIN_ENTITY_TYPES.get(nt, "other"))
+                    if self.entity_classifier:
+                        # Use database-backed classifier
+                        try:
+                            domain = self.entity_classifier.get_primary_domain(nt)
+                            domains.add(domain)
+                        except Exception as e:
+                            logger.warning(f"Failed to classify entity type '{nt}': {e}")
+                            domains.add(DOMAIN_ENTITY_TYPES.get(nt, "other"))
+                    else:
+                        # Fallback to hardcoded mapping
+                        domains.add(DOMAIN_ENTITY_TYPES.get(nt, "other"))
 
                 weak_links.append({
                     "entity": record["entity"],

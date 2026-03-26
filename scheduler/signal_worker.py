@@ -33,6 +33,7 @@ import redis
 from neo4j import GraphDatabase
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from agents.disinfo_detector import DisinfoDetector
 from config import (
     NEO4J_URI, NEO4J_AUTH,
     REDIS_HOST, REDIS_PORT,
@@ -463,6 +464,13 @@ def main():
                     all_signals += _detect_topic_spikes(db)
                 except Exception as e:
                     logger.error(f"topic_spike detection failed: {e}", exc_info=True)
+
+                try:
+                    detector = DisinfoDetector()
+                    disinfo_sigs = detector.run()
+                    logger.info(f"disinfo_detector: {len(disinfo_sigs)} signals")
+                except Exception as e:
+                    logger.error(f"disinfo detection failed: {e}", exc_info=True)
 
                 count = _persist_signals(db, all_signals)
                 _publish_signals(redis_client, all_signals)

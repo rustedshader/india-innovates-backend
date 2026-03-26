@@ -13,7 +13,7 @@ digraph data_ingestion {
     fontcolor="#333333";
 
     // Sources
-    rss [label="RSS Feeds\n(TOI, NDTV, Hindu,\nET, Livemint, ...)", fillcolor="#E3F2FD", color="#1565C0"];
+    rss [label="RSS Feeds (31 sources)\n(NDTV, Hindu, Livemint,\nIndia Today, India TV,\nBBC, WashPost, ...)", fillcolor="#E3F2FD", color="#1565C0"];
 
     // Producer
     subgraph cluster_producer {

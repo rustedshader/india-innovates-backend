@@ -19,42 +19,10 @@ from neo4j import GraphDatabase
 from pydantic import BaseModel, Field
 
 from config import NEO4J_URI, NEO4J_AUTH
+from models.database import SessionLocal
+from agents.india_entity_service import IndiaEntityService
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# India seed entities — fallback for sparse graph connectivity
-# ---------------------------------------------------------------------------
-
-INDIA_SEED_ENTITIES: set[str] = {
-    # Country
-    "India",
-    # Government & leadership
-    "Narendra Modi", "Prime Minister of India", "Modi Government",
-    "Ministry of External Affairs", "Ministry of Defence",
-    "Ministry of Finance", "Ministry of Home Affairs",
-    "National Security Advisor", "Ajit Doval",
-    # Defence & space
-    "Indian Army", "Indian Navy", "Indian Air Force",
-    "Indian Coast Guard", "DRDO", "Defence Research and Development Organisation",
-    "ISRO", "Indian Space Research Organisation", "HAL",
-    "Hindustan Aeronautics Limited",
-    # Economic
-    "Reserve Bank of India", "RBI", "SEBI",
-    "Securities and Exchange Board of India",
-    "Bombay Stock Exchange", "National Stock Exchange",
-    # Political
-    "BJP", "Bharatiya Janata Party", "Indian National Congress",
-    "Indian Parliament", "Lok Sabha", "Rajya Sabha",
-    # Intelligence & strategic
-    "RAW", "Research and Analysis Wing",
-    "National Investigation Agency", "NIA",
-    # Geographic
-    "New Delhi", "Mumbai", "Indian Ocean",
-    "Line of Control", "LOC", "Ladakh",
-    "Andaman and Nicobar Islands", "Kashmir",
-}
 
 
 # ---------------------------------------------------------------------------
@@ -142,42 +110,43 @@ class IndiaImpactAgent:
     # ── Phase A: Graph-driven India entity discovery ───────────────────────
 
     def _discover_india_entities(self) -> set[str]:
-        """Find all India-connected entities via Neo4j graph traversal + seed set.
+        """Find all India-connected entities from database.
 
-        Traverses 1-2 hops from the India entity through RELATES_TO and
-        PART_OF edges to discover connected entities (leaders, orgs, etc.).
-        Merges with the static seed set matched against the graph.
+        Retrieves pre-discovered India entities from the PostgreSQL database.
+        The database is periodically refreshed via graph traversal by a background worker.
+        Falls back to direct graph query if database is empty.
         """
-        discovered = set()
+        # Get database session
+        db = SessionLocal()
+        try:
+            service = IndiaEntityService(db, neo4j_driver=self.driver)
 
-        with self.driver.session() as session:
-            # Traverse from India node — 1-2 hops via RELATES_TO / PART_OF
-            result = session.run("""
-                MATCH (india:Entity)
-                WHERE lower(india.name) = 'india'
-                OPTIONAL MATCH (india)-[:RELATES_TO|PART_OF*1..2]-(connected:Entity)
-                WITH collect(DISTINCT india.name) + collect(DISTINCT connected.name) AS names
-                UNWIND names AS name
-                RETURN collect(DISTINCT name) AS india_entities
-            """).single()
+            # Try to get entities from database first
+            entities = service.get_india_entities(min_relevance_score=0.3)
 
-            if result and result["india_entities"]:
-                discovered.update(result["india_entities"])
+            if entities:
+                logger.info(f"  India entity discovery: {len(entities)} entities from database")
+                return entities
 
-            # Match seed entities that exist in the graph
-            seed_list = list(INDIA_SEED_ENTITIES)
-            seed_result = session.run("""
-                UNWIND $seeds AS seed_name
-                MATCH (e:Entity)
-                WHERE lower(e.name) = lower(seed_name)
-                RETURN collect(DISTINCT e.name) AS matched
-            """, seeds=seed_list).single()
+            # Fallback: discover from graph directly and refresh database
+            logger.warning("No India entities in database, discovering from graph")
+            discovered = service.discover_from_graph(max_hops=3, min_connection_count=2)
 
-            if seed_result and seed_result["matched"]:
-                discovered.update(seed_result["matched"])
+            if discovered:
+                # Store discovered entities
+                result = service.refresh_database(max_hops=3, min_connection_count=2)
+                logger.info(f"  Discovered and stored {result.get('total', 0)} India entities")
 
-        logger.info(f"  India entity discovery: {len(discovered)} entities found")
-        return discovered
+                # Return entity names
+                entities = {e["entity_name"] for e in discovered}
+                return entities
+
+            # Ultimate fallback: return empty set (no silent defaults)
+            logger.error("Failed to discover any India entities from graph")
+            return set()
+
+        finally:
+            db.close()
 
     # ── Phase A.2: Extract India-relevant subgraph ─────────────────────────
 
@@ -350,12 +319,23 @@ RULES:
         """
         logger.info(f"IndiaImpactAgent: analyzing {domain} from India's perspective")
 
-        # Phase A: Discover India-connected entities via graph traversal
+        # Phase A: Discover India-connected entities from database
         india_entities = self._discover_india_entities()
 
         if not india_entities:
-            logger.warning("No India-connected entities found in graph, using seed set only")
-            india_entities = INDIA_SEED_ENTITIES.copy()
+            logger.error("No India-connected entities found in database or graph")
+            # Return empty analysis instead of using hardcoded fallback
+            return {
+                "executive_summary": "No India-related entities could be discovered for this analysis.",
+                "strategic_assessment": {
+                    "summary": "Entity discovery failed - cannot perform India impact analysis.",
+                    "implications": ["Database refresh needed"]
+                },
+                "transparency_insights": [],
+                "national_advantages": [],
+                "risks": [],
+                "global_positioning": [],
+            }
 
         # Phase A.2: Extract India-relevant subgraph from domain data
         india_subgraph = self._extract_india_subgraph(

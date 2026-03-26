@@ -960,3 +960,73 @@ config.py                   # All config: DB, Neo4j, Redis, Kafka, scrape interv
 main.py                     # Entry point (imports FastAPI app from api/)
 pyproject.toml              # Dependencies managed via uv
 ```
+
+---
+
+## RSS Feed Sources
+
+The system monitors **31 high-quality RSS feeds** across Indian and international news sources. All feeds are actively maintained and provide fresh content (< 1 year old).
+
+### Feed Health
+
+- **Total feeds:** 31
+- **Working rate:** 100% (31/31)
+- **Freshness:** 100% (all < 1 year old)
+- **Last verified:** March 27, 2026
+
+### Active Sources
+
+**International News (2)**
+- Washington Post (World)
+- BBC (World)
+
+**Indian News - General (3)**
+- NDTV (Top Stories)
+- India Today (Nation, World)
+
+**The Hindu (6 feeds)**
+- Main News, World, States, Cities, Economy, Markets, Budget
+
+**Live Mint (5 feeds)**
+- News, Companies, Money, Politics, AI
+
+**India TV (10 feeds)**
+- Top Stories, World, Entertainment, Sports, Technology, Health, Lifestyle, Business, Education, Crime
+
+**Economic Times (1)**
+- Defence
+
+**Foreign Affairs (1)**
+- Latest Articles
+
+**Technology & Science (1)**
+- YourStory Tech
+
+**Climate (1)**
+- Climate Home News
+
+### Removed Sources
+
+The following sources were removed due to persistent failures or stale content:
+
+- **PIB (5 feeds)** - Connection errors, XML parsing failures
+- **The Print (4 feeds)** - 403 Forbidden, anti-scraping measures
+- **The Wire (2 feeds)** - XML parsing errors (returned HTML instead of RSS)
+- **WION (2 feeds)** - 403 Forbidden, active bot detection
+- **Business Standard (2 feeds)** - 403 Forbidden, anti-scraping measures
+- **Moneycontrol (2 feeds)** - No articles returned (blocked programmatic access)
+- **The Wire Science (1 feed)** - Dead feed (last update: Feb 2024)
+- **India TV Politics (1 feed)** - Dead feed (last update: July 2023)
+- **India Today Economy (1 feed)** - Stale feed (last update: March 2025)
+- **Analytics India (1 feed)** - XML parsing errors
+- **ORF Online (1 feed)** - 404 Not Found
+- **Down To Earth (1 feed)** - 404 Not Found
+- **Economic Times Main (1 feed)** - XML validation error
+
+### Feed Maintenance
+
+Feed health is monitored regularly using:
+- `scripts/check_feed_freshness.py` - Checks article recency
+- `scripts/verify_updated_feeds.py` - Tests feed functionality
+
+Feeds are automatically excluded if they fail for >7 days or show no new content for >365 days.

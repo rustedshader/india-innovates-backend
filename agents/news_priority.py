@@ -34,6 +34,7 @@ from models.database import SessionLocal
 from models.scraped_article import ScrapedArticle
 from models.source_config import SourceConfig
 from scrapers.news_rss import Article
+from agents.scoring_config import ScoringConfig
 
 logger = logging.getLogger(__name__)
 
@@ -151,10 +152,21 @@ class NewsPriorityAgent:
         self,
         model: str = "llama-3.1-8b-instant",
         embedding_model: str = "all-MiniLM-L6-v2",
+        db_session=None,
     ):
         self.embedder = SentenceTransformer(embedding_model)
         self.llm = ChatGroq(model=model).with_structured_output(ArticleImportance)
         self.r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+
+        # Initialize database session and scoring config
+        if db_session:
+            self.db = db_session
+            self._owns_db = False
+        else:
+            self.db = SessionLocal()
+            self._owns_db = True
+
+        self.scoring_config = ScoringConfig(self.db)
         logger.info("NewsPriorityAgent initialized")
 
     # ── Source credibility ────────────────────────────────────────────────────
@@ -260,42 +272,33 @@ class NewsPriorityAgent:
         self.r.hset(f"cluster:{cluster_uuid}", mapping=updates)
         self.r.zadd(CLUSTERS_ACTIVE_KEY, {cluster_uuid: now})
 
-    # Domain-based weight adjustments. Known high-structural-importance domains
-    # get a boost; sensationalist-prone domains get dampened. Unlisted domains
-    # default to 1.0 (neutral).
-    DOMAIN_WEIGHT: dict[str, float] = {
-        "geopolitics": 1.10,
-        "defense": 1.10,
-        "diplomacy": 1.10,
-        "economics": 1.05,
-        "energy": 1.05,
-        "elections": 1.05,
-        "judiciary": 1.05,
-        "technology": 1.00,
-        "politics": 1.00,
-        "infrastructure": 1.00,
-        "environment": 1.00,
-        "science": 1.00,
-        "education": 1.00,
-        "health": 0.95,
-        "sports": 0.90,
-        "crime": 0.85,
-        "human_interest": 0.85,
-    }
+    # Domain-based weight adjustments are now loaded from database via ScoringConfig
+    # See agents/scoring_config.py and scoring_weights table
 
     def _store_cluster_score(
         self, cluster_uuid: str, importance: ArticleImportance, article_count: int = 1
     ) -> None:
+        # Get formula weights from database
+        formula_weights = self.scoring_config.get_formula_weights()
+
         # Base score: impact-heavy formula (impact is the primary signal)
         base = (
-            0.50 * importance.impact_score
-            + 0.20 * importance.novelty_score
-            + 0.30 * importance.india_relevance
+            formula_weights.get("impact_score", 0.5) * importance.impact_score
+            + formula_weights.get("novelty_score", 0.2) * importance.novelty_score
+            + formula_weights.get("india_relevance", 0.3) * importance.india_relevance
         )
-        # Domain modifier
-        domain_mult = self.DOMAIN_WEIGHT.get(importance.domain, 1.0)
+
+        # Domain modifier from database
+        domain_mult = self.scoring_config.get_domain_weight(importance.domain)
+
         # Coverage density bonus: more sources → higher importance (diminishing returns)
-        coverage_bonus = min(math.log(max(article_count, 1) + 1) / math.log(6), 1.0) * 0.5
+        coverage_params = self.scoring_config.get_coverage_params()
+        log_base = coverage_params.get("log_base", 6.0)
+        multiplier = coverage_params.get("multiplier", 0.5)
+        coverage_bonus = min(
+            math.log(max(article_count, 1) + 1) / math.log(log_base), 1.0
+        ) * multiplier
+
         score = round(min((base * domain_mult) + coverage_bonus, 10.0), 2)
         self.r.hset(
             f"cluster:{cluster_uuid}",

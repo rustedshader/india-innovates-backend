@@ -119,12 +119,18 @@ class NewsRSSScraper:
         articles = scraper.fetch_and_extract_all()
     """
 
-    def __init__(self, request_timeout: int = 10, dedup_titles: bool = True):
+    def __init__(self, request_timeout: int = 15, dedup_titles: bool = True):
         self._feeds: list[tuple[str, str]] = []  # [(source_name, rss_url), ...]
         self._seen_urls: set[str] = set()
         self._seen_title_keys: set[str] = set()  # normalized title keys for cross-source dedup
         self._dedup_titles = dedup_titles
         self._request_timeout = request_timeout
+        # Headers to bypass bot detection
+        self._headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
 
     @property
     def feeds(self) -> list[tuple[str, str]]:
@@ -181,7 +187,7 @@ class NewsRSSScraper:
             max_per_feed: Max articles to take from this feed (0 = unlimited)
         """
         try:
-            response = requests.get(rss_url, timeout=self._request_timeout)
+            response = requests.get(rss_url, headers=self._headers, timeout=self._request_timeout)
             response.raise_for_status()
         except requests.RequestException as e:
             logger.error(f"Failed to fetch RSS feed from {source_name} ({rss_url}): {e}")
@@ -362,9 +368,7 @@ def create_default_scraper() -> NewsRSSScraper:
     scraper.add_feed("NDTV", "https://feeds.feedburner.com/ndtvnews-top-stories")
     # India Today Nation
     scraper.add_feed("India Today", "https://www.indiatoday.in/rss/1206514")
-    # India Today Economy
-    scraper.add_feed("India Today", "https://www.indiatoday.in/rss/1206513")
-    # Inndia Today World
+    # India Today World
     scraper.add_feed("India Today", "https://www.indiatoday.in/rss/1206577")
 
     # The Hindu
@@ -393,14 +397,11 @@ def create_default_scraper() -> NewsRSSScraper:
     # Live Mint AI
     scraper.add_feed("Live Mint", "https://www.livemint.com/rss/AI")
 
-    # Economic Times
-    scraper.add_feed("Economic Times", "https://b2b.economictimes.indiatimes.com/rss/recentstories")
     # Economic Times Defence
     scraper.add_feed("Economic Times", "https://b2b.economictimes.indiatimes.com/rss/defence")
 
 
     scraper.add_feed("India TV", "https://www.indiatvnews.com/rssnews/topstory.xml")
-    scraper.add_feed("India TV", "https://www.indiatvnews.com/rssnews/topstory-politics.xml/")
     scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-world.xml")
     scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-entertainment.xml")
     scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-sports.xml")
@@ -410,6 +411,21 @@ def create_default_scraper() -> NewsRSSScraper:
     scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-business.xml")
     scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-education.xml")
     scraper.add_feed("India TV","https://www.indiatvnews.com/rssnews/topstory-crime.xml")
+
+    # ── National Security & Defence ───────────────────────────────────────────
+    # Note: PIB, The Print, The Wire, and WION feeds removed due to persistent failures
+
+    # ── Geopolitics & Foreign Policy ──────────────────────────────────────────
+    scraper.add_feed("Foreign Affairs",    "https://www.foreignaffairs.com/rss.xml")
+
+    # ── Financial / Economic ──────────────────────────────────────────────────
+    # Note: Moneycontrol feeds removed due to persistent blocking
+
+    # ── Technology & Science ──────────────────────────────────────────────────
+    scraper.add_feed("YourStory Tech",     "https://yourstory.com/feed")
+
+    # ── Climate / Energy ──────────────────────────────────────────────────────
+    scraper.add_feed("Climate Home News",  "https://www.climatechangenews.com/feed/")
 
     return scraper
 

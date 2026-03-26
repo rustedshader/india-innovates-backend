@@ -15,7 +15,10 @@ import numpy as np
 import pandas as pd
 from scipy import stats as sp_stats
 
-from scrapers.weather import CITY_BY_NAME, VARIABLE_TO_COLUMN
+from scrapers.weather import VARIABLE_TO_COLUMN
+from models.database import SessionLocal
+from agents.city_service import CityService, CityNotFoundError
+from agents.weather_threshold_service import WeatherThresholdService
 
 logger = logging.getLogger(__name__)
 
@@ -50,27 +53,27 @@ class DetectedAnomaly:
 class WeatherAnomalyDetector:
     """Statistical + rule-based anomaly detection for Indian weather data.
 
-    Uses climate normals as baseline and IMD thresholds for event classification.
+    Uses climate normals as baseline and database-backed IMD thresholds for event classification.
     """
 
-    # IMD-aligned thresholds
-    HEAT_WAVE = {
-        "plains":  {"threshold": 40.0, "departure": 4.5, "consecutive_days": 3},
-        "coastal": {"threshold": 37.0, "departure": 4.5, "consecutive_days": 3},
-        "hills":   {"threshold": 30.0, "departure": 5.0, "consecutive_days": 3},
-    }
-    COLD_WAVE = {
-        "plains":  {"threshold": 4.0, "departure": -4.5, "consecutive_days": 3},
-        "coastal": {"threshold": 10.0, "departure": -4.5, "consecutive_days": 3},
-        "hills":   {"threshold": -2.0, "departure": -5.0, "consecutive_days": 3},
-    }
-    EXTREME_RAIN_MM = 204.5       # IMD "extremely heavy rainfall"
-    VERY_HEAVY_RAIN_MM = 115.6    # IMD "very heavy rainfall"
-    HEAVY_RAIN_MM = 64.5          # IMD "heavy rainfall"
-    DROUGHT_SOIL_Z = -1.5
-    DROUGHT_PRECIP_PERCENTILE = 20
-    DROUGHT_MIN_DAYS = 14
-    CYCLONE_WIND_KMH = 90.0
+    def __init__(self, db_session=None):
+        """Initialize with optional database session for threshold lookups."""
+        if db_session:
+            self.db = db_session
+            self.city_service = CityService(db_session)
+            self.threshold_service = WeatherThresholdService(db_session)
+            self._owns_db = False
+        else:
+            # Create own session
+            self.db = SessionLocal()
+            self.city_service = CityService(self.db)
+            self.threshold_service = WeatherThresholdService(self.db)
+            self._owns_db = True
+
+    def __del__(self):
+        """Close database session if we own it."""
+        if self._owns_db and hasattr(self, 'db'):
+            self.db.close()
 
     # ── Z-score computation ──────────────────────────────────────────
 
@@ -135,10 +138,22 @@ class WeatherAnomalyDetector:
         normals: pd.DataFrame | None = None,
     ) -> list[DetectedAnomaly]:
         """Detect heat waves using IMD criteria: Tmax above threshold for ≥3 consecutive days."""
-        zone = CITY_BY_NAME.get(city, type("", (), {"zone": "plains"})).zone
-        rules = self.HEAT_WAVE.get(zone, self.HEAT_WAVE["plains"])
-        threshold = rules["threshold"]
-        min_days = rules["consecutive_days"]
+        # Get city metadata for zone
+        try:
+            city_metadata = self.city_service.get_city_metadata(city)
+            zone = city_metadata["zone"]
+        except CityNotFoundError:
+            logger.error(f"City '{city}' not found, cannot detect heat waves")
+            return []
+
+        # Get threshold from database
+        try:
+            threshold_data = self.threshold_service.get_heat_wave_threshold(city, zone)
+            threshold = threshold_data["threshold_value"]
+            min_days = int(threshold_data["consecutive_days"])
+        except ValueError as e:
+            logger.error(f"No heat wave threshold found for city={city}, zone={zone}: {e}")
+            return []
 
         if "temperature_max" not in df.columns:
             return []
@@ -160,10 +175,22 @@ class WeatherAnomalyDetector:
         normals: pd.DataFrame | None = None,
     ) -> list[DetectedAnomaly]:
         """Detect cold waves: Tmin below threshold for ≥3 consecutive days."""
-        zone = CITY_BY_NAME.get(city, type("", (), {"zone": "plains"})).zone
-        rules = self.COLD_WAVE.get(zone, self.COLD_WAVE["plains"])
-        threshold = rules["threshold"]
-        min_days = rules["consecutive_days"]
+        # Get city metadata for zone
+        try:
+            city_metadata = self.city_service.get_city_metadata(city)
+            zone = city_metadata["zone"]
+        except CityNotFoundError:
+            logger.error(f"City '{city}' not found, cannot detect cold waves")
+            return []
+
+        # Get threshold from database
+        try:
+            threshold_data = self.threshold_service.get_cold_wave_threshold(city, zone)
+            threshold = threshold_data["threshold_value"]
+            min_days = int(threshold_data["consecutive_days"])
+        except ValueError as e:
+            logger.error(f"No cold wave threshold found for city={city}, zone={zone}: {e}")
+            return []
 
         if "temperature_min" not in df.columns:
             return []
@@ -185,17 +212,41 @@ class WeatherAnomalyDetector:
         if "precipitation_sum" not in df.columns:
             return []
 
+        # Get city metadata for zone
+        try:
+            city_metadata = self.city_service.get_city_metadata(city)
+            zone = city_metadata["zone"]
+        except CityNotFoundError:
+            logger.error(f"City '{city}' not found, cannot detect extreme rainfall")
+            return []
+
+        # Get rainfall thresholds from database
+        try:
+            extreme_threshold = self.threshold_service.get_threshold(city, zone, "extreme_rain")["threshold_value"]
+        except ValueError:
+            extreme_threshold = 204.5  # IMD default
+
+        try:
+            very_heavy_threshold = self.threshold_service.get_threshold(city, zone, "very_heavy_rain")["threshold_value"]
+        except ValueError:
+            very_heavy_threshold = 115.6  # IMD default
+
+        try:
+            heavy_threshold = self.threshold_service.get_threshold(city, zone, "heavy_rain")["threshold_value"]
+        except ValueError:
+            heavy_threshold = 64.5  # IMD default
+
         anomalies = []
         for idx, row in df.iterrows():
             precip = row["precipitation_sum"]
             if pd.isna(precip):
                 continue
 
-            if precip >= self.EXTREME_RAIN_MM:
+            if precip >= extreme_threshold:
                 severity = "extreme"
-            elif precip >= self.VERY_HEAVY_RAIN_MM:
+            elif precip >= very_heavy_threshold:
                 severity = "severe"
-            elif precip >= self.HEAVY_RAIN_MM:
+            elif precip >= heavy_threshold:
                 severity = "warning"
             else:
                 continue
@@ -263,7 +314,14 @@ class WeatherAnomalyDetector:
         self, city: str, df: pd.DataFrame
     ) -> list[DetectedAnomaly]:
         """Detect cyclone proxy at coastal stations: wind gusts > 90 km/h + heavy rain."""
-        zone = CITY_BY_NAME.get(city, type("", (), {"zone": "plains"})).zone
+        # Get city metadata for zone
+        try:
+            city_metadata = self.city_service.get_city_metadata(city)
+            zone = city_metadata["zone"]
+        except CityNotFoundError:
+            logger.error(f"City '{city}' not found, cannot detect cyclones")
+            return []
+
         if zone != "coastal":
             return []
 
@@ -272,6 +330,17 @@ class WeatherAnomalyDetector:
         if not has_wind or not has_precip:
             return []
 
+        # Get thresholds from database
+        try:
+            cyclone_wind_threshold = self.threshold_service.get_threshold(city, zone, "cyclone_wind")["threshold_value"]
+        except ValueError:
+            cyclone_wind_threshold = 90.0  # Default
+
+        try:
+            heavy_rain_threshold = self.threshold_service.get_threshold(city, zone, "heavy_rain")["threshold_value"]
+        except ValueError:
+            heavy_rain_threshold = 64.5  # Default
+
         anomalies = []
         for idx, row in df.iterrows():
             wind = row.get("wind_gusts_max", 0)
@@ -279,7 +348,7 @@ class WeatherAnomalyDetector:
             if pd.isna(wind) or pd.isna(precip):
                 continue
 
-            if wind >= self.CYCLONE_WIND_KMH and precip >= self.HEAVY_RAIN_MM:
+            if wind >= cyclone_wind_threshold and precip >= heavy_rain_threshold:
                 d = idx.date() if hasattr(idx, "date") else idx
                 severity = "extreme" if wind >= 120 else ("severe" if wind >= 100 else "warning")
                 anomalies.append(DetectedAnomaly(
