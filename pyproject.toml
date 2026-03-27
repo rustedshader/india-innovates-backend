@@ -37,3 +37,11 @@ dependencies = [
     "geopy>=2.4.1",
     "rapidfuzz>=3.14.3",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

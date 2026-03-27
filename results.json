@@ -1,0 +1,5742 @@
+{
+  "run_at": "2026-03-27T00:15:47.221152+00:00",
+  "n_articles": 20,
+  "summaries": [
+    {
+      "method": "llm_only",
+      "n_articles": 20,
+      "avg_duration_ms": 1374.1351124001085,
+      "std_duration_ms": 268.250636326681,
+      "avg_entity_count": 15.1,
+      "avg_relation_count": 9.05,
+      "hallucination_rate_pct": 1.3245033112582782,
+      "avg_tokens": 1165.95,
+      "total_errors": 0
+    },
+    {
+      "method": "gliner2_llm_hybrid",
+      "n_articles": 20,
+      "avg_duration_ms": 13509.489006151853,
+      "std_duration_ms": 3019.7404663818943,
+      "avg_entity_count": 19.85,
+      "avg_relation_count": 6.8,
+      "hallucination_rate_pct": 3.27455919395466,
+      "avg_tokens": 224.9,
+      "total_errors": 0
+    },
+    {
+      "method": "gliner2_only",
+      "n_articles": 20,
+      "avg_duration_ms": 7284.7774041991215,
+      "std_duration_ms": 488.1420866694166,
+      "avg_entity_count": 14.2,
+      "avg_relation_count": 6.1,
+      "hallucination_rate_pct": 2.8169014084507045,
+      "avg_tokens": 0,
+      "total_errors": 0
+    }
+  ],
+  "per_article": {
+    "llm_only": [
+      {
+        "article_url": "https://www.livemint.com/companies/news/anthropic-wins-preliminary-injunction-against-pentagon-in-landmark-ai-blacklisting-case-11774567078903.html",
+        "article_len_chars": 5028,
+        "method": "llm_only",
+        "duration_ms": 1485.1024999807123,
+        "entity_count": 15,
+        "relation_count": 8,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1257,
+        "entities": [
+          {
+            "name": "Anthropic",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "San Francisco",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Trump administration",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Pentagon",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Rita Lin",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "US government",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Claude models",
+            "type": "TECHNOLOGY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Department of Defense",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Pete Hegseth",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Amazon",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Microsoft",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Palantir",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Donald Trump",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Truth Social",
+            "type": "TECHNOLOGY",
+            "confidence": 0.6
+          },
+          {
+            "name": "Washington, D.C.",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.livemint.com/news/us-news/long-airport-queues-to-end-soon-donald-trump-moves-to-pay-tsa-officers-immediately-amid-dhs-shutdown-11774567994978.html",
+        "article_len_chars": 5183,
+        "method": "llm_only",
+        "duration_ms": 912.3011670017149,
+        "entity_count": 9,
+        "relation_count": 5,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 1115,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "PERSON",
+            "confidence": 0.99
+          },
+          {
+            "name": "United States",
+            "type": "COUNTRY",
+            "confidence": 0.95
+          },
+          {
+            "name": "Transportation Security Administration",
+            "type": "ORGANIZATION",
+            "confidence": 0.98
+          },
+          {
+            "name": "Department of Homeland Security",
+            "type": "ORGANIZATION",
+            "confidence": 0.98
+          },
+          {
+            "name": "Markwayne Mullin",
+            "type": "PERSON",
+            "confidence": 0.95
+          },
+          {
+            "name": "Truth Social",
+            "type": "TECHNOLOGY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Democratic Party",
+            "type": "ORGANIZATION",
+            "confidence": 0.95
+          },
+          {
+            "name": "Chuck Schumer",
+            "type": "PERSON",
+            "confidence": 0.95
+          },
+          {
+            "name": "Immigration Enforcement",
+            "type": "POLICY",
+            "confidence": 0.9
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/cities/chennai/tn-election-2026-water-woes-poor-sewer-network-mar-this-constituency-in-transition/article70788955.ece",
+        "article_len_chars": 493,
+        "method": "llm_only",
+        "duration_ms": 742.5040420203004,
+        "entity_count": 7,
+        "relation_count": 5,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 438,
+        "entities": [
+          {
+            "name": "M. Jayanthi",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Thirumullaivoyal",
+            "type": "COUNTRY",
+            "confidence": 0.6
+          },
+          {
+            "name": "Avadi",
+            "type": "COUNTRY",
+            "confidence": 0.6
+          },
+          {
+            "name": "Tiruvallur district",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Avadi Assembly constituency",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Pattabiram",
+            "type": "COUNTRY",
+            "confidence": 0.6
+          },
+          {
+            "name": "Thiruninravur",
+            "type": "COUNTRY",
+            "confidence": 0.6
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.indiatoday.in/world/story/nicolas-maduro-makes-first-court-appearance-as-us-judge-questions-sanctions-row-2887657-2026-03-27?utm_source=rss",
+        "article_len_chars": 4322,
+        "method": "llm_only",
+        "duration_ms": 1285.0755419931374,
+        "entity_count": 15,
+        "relation_count": 9,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 1251,
+        "entities": [
+          {
+            "name": "Nicolas Maduro",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Venezuela",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "US",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Cilia Flores",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Alvin Hellerstein",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Kyle Wirshba",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Donald Trump",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Bill Clinton",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Julian Assange",
+            "type": "PERSON",
+            "confidence": 0.6
+          },
+          {
+            "name": "WikiLeaks",
+            "type": "ORGANIZATION",
+            "confidence": 0.6
+          },
+          {
+            "name": "US Constitution",
+            "type": "POLICY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Sixth Amendment",
+            "type": "POLICY",
+            "confidence": 0.8
+          },
+          {
+            "name": "US District Court",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "US military",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "US sanctions",
+            "type": "POLICY",
+            "confidence": 0.8
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.ndtv.com/world-news/iran-war-us-deploys-uncrewed-drone-boats-in-conflict-with-iran-11272030#publisher=newsstand",
+        "article_len_chars": 2735,
+        "method": "llm_only",
+        "duration_ms": 1781.8528329953551,
+        "entity_count": 22,
+        "relation_count": 10,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1282,
+        "entities": [
+          {
+            "name": "United States",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Pentagon",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Washington",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Ukraine",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Russia",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "US Navy",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "BlackSea",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "GARC",
+            "type": "TECHNOLOGY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Tim Hawkins",
+            "type": "PERSON",
+            "confidence": 0.6
+          },
+          {
+            "name": "China",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "NDTV",
+            "type": "ORGANIZATION",
+            "confidence": 0.5
+          },
+          {
+            "name": "Reuters",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "US 5th Fleet",
+            "type": "ORGANIZATION",
+            "confidence": 0.6
+          },
+          {
+            "name": "Operation Epic Fury",
+            "type": "EVENT",
+            "confidence": 0.6
+          },
+          {
+            "name": "Middle East",
+            "type": "REGION",
+            "confidence": 0.6
+          },
+          {
+            "name": "Pacific",
+            "type": "REGION",
+            "confidence": 0.5
+          },
+          {
+            "name": "Gulf",
+            "type": "REGION",
+            "confidence": 0.5
+          },
+          {
+            "name": "Black Sea Fleet",
+            "type": "ORGANIZATION",
+            "confidence": 0.6
+          },
+          {
+            "name": "Central Command",
+            "type": "ORGANIZATION",
+            "confidence": 0.6
+          },
+          {
+            "name": "Maryland",
+            "type": "REGION",
+            "confidence": 0.5
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.ndtv.com/world-news/donald-trump-on-taking-control-of-irans-oil-amid-middle-east-tensions-11271965#publisher=newsstand",
+        "article_len_chars": 1993,
+        "method": "llm_only",
+        "duration_ms": 1240.8255829941481,
+        "entity_count": 11,
+        "relation_count": 7,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 895,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "US",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Venezuela",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Nicolas Maduro",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Delcy Rodriguez",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "White House",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "EVENT",
+            "confidence": 0.7
+          },
+          {
+            "name": "Saudi Arabia",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Russia",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "NDTV",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/international/ballots-without-a-country-a-quiet-case-for-pluralism-in-myanmar/article70788535.ece",
+        "article_len_chars": 12350,
+        "method": "llm_only",
+        "duration_ms": 1329.1190829768311,
+        "entity_count": 11,
+        "relation_count": 7,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1146,
+        "entities": [
+          {
+            "name": "Thein Sein",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Aung San Suu Kyi",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Myanmar",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Barrack Obama",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "U.S.",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "National League for Democracy (NLD)",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Min Aung Hlaing",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Win Myint",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "ASEAN",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "China",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "West Asia",
+            "type": "REGION",
+            "confidence": 0.8
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.indiatoday.in/world/story/toys-compared-to-ours-president-trump-ridicules-uk-carriers-amid-iran-war-tensions-2887656-2026-03-27?utm_source=rss",
+        "article_len_chars": 1971,
+        "method": "llm_only",
+        "duration_ms": 1262.19429099001,
+        "entity_count": 15,
+        "relation_count": 10,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 977,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "PERSON",
+            "confidence": 0.95
+          },
+          {
+            "name": "Britain",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "US",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Nato",
+            "type": "ORGANIZATION",
+            "confidence": 0.95
+          },
+          {
+            "name": "Royal Navy",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Diego Garcia base",
+            "type": "TECHNOLOGY",
+            "confidence": 0.8
+          },
+          {
+            "name": "B-2 bombers",
+            "type": "WEAPON",
+            "confidence": 0.85
+          },
+          {
+            "name": "HMS Dragon",
+            "type": "WEAPON",
+            "confidence": 0.8
+          },
+          {
+            "name": "John Healey",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Germany",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Cyprus",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran war",
+            "type": "EVENT",
+            "confidence": 0.85
+          },
+          {
+            "name": "US-Israel campaign",
+            "type": "EVENT",
+            "confidence": 0.8
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/iran-missiles-israel-air-defense/",
+        "article_len_chars": 10089,
+        "method": "llm_only",
+        "duration_ms": 1342.3138330108486,
+        "entity_count": 10,
+        "relation_count": 9,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1157,
+        "entities": [
+          {
+            "name": "David Azran",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Mohammad Bagher Ghalibaf",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Dimona",
+            "type": "LOCATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Arad",
+            "type": "LOCATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Nadav Shoshani",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "IDF",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iranian parliament",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Israel Defense Forces",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/national/haryana/haryanas-cotton-farms-holding-on-by-a-thread/article70784114.ece",
+        "article_len_chars": 11212,
+        "method": "llm_only",
+        "duration_ms": 1315.3536670142785,
+        "entity_count": 17,
+        "relation_count": 7,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1289,
+        "entities": [
+          {
+            "name": "Satyavan",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Haryana",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Delhi",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Dayanand Dhaka",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Kirtan village",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Ministry of Agriculture and Farmers Welfare",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Chaudhary Charan Singh Haryana Agricultural University",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Department of Agricultural Economics",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Sirsa",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Fatehabad",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Jhajjar",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Charkhi Dadri",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Bhiwani",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Jind",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Hisar",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Minimum Support Price",
+            "type": "POLICY",
+            "confidence": 0.8
+          },
+          {
+            "name": "pink bollworm",
+            "type": "WEAPON",
+            "confidence": 0.6
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/ukraine-russia-drone-attack/",
+        "article_len_chars": 3901,
+        "method": "llm_only",
+        "duration_ms": 1283.811125002103,
+        "entity_count": 14,
+        "relation_count": 9,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1231,
+        "entities": [
+          {
+            "name": "Russia",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Ukraine",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Moscow",
+            "type": "CITY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Kyiv",
+            "type": "CITY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Volodymyr Zelensky",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Trump administration",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Lviv",
+            "type": "CITY",
+            "confidence": 0.8
+          },
+          {
+            "name": "UNESCO",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Ivano-Frankivsk",
+            "type": "REGION",
+            "confidence": 0.7
+          },
+          {
+            "name": "St. Petersburg",
+            "type": "CITY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Baltic Sea",
+            "type": "BODY_OF_WATER",
+            "confidence": 0.7
+          },
+          {
+            "name": "Ukrainian Defense Ministry",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Kremlin",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/26/us-israel-iran-navy-chief-killed-hormuz/",
+        "article_len_chars": 5798,
+        "method": "llm_only",
+        "duration_ms": 1155.8819579950068,
+        "entity_count": 13,
+        "relation_count": 8,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1189,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "PERSON",
+            "confidence": 0.95
+          },
+          {
+            "name": "Tehran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.95
+          },
+          {
+            "name": "United States",
+            "type": "COUNTRY",
+            "confidence": 0.95
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "White House",
+            "type": "ORGANIZATION",
+            "confidence": 0.85
+          },
+          {
+            "name": "Steve Witkoff",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Pakistan",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Lebanon",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "EVENT",
+            "confidence": 0.85
+          },
+          {
+            "name": "Iran war",
+            "type": "EVENT",
+            "confidence": 0.9
+          },
+          {
+            "name": "S&P 500",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Nasdaq",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/weather/2026/03/24/middle-east-storm-flooding-tornado-iran-dubai/",
+        "article_len_chars": 5704,
+        "method": "llm_only",
+        "duration_ms": 1503.859457996441,
+        "entity_count": 18,
+        "relation_count": 8,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1261,
+        "entities": [
+          {
+            "name": "Tornado Alley",
+            "type": "EVENT",
+            "confidence": 0.8
+          },
+          {
+            "name": "Middle East",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Arabian Peninsula",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Dubai",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Abu Dhabi",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "U.S.",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "The Washington Post",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Oman",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "NOAA",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Ben Noll",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Mediterranean",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Egypt",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Red Sea",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Saudi Arabia",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Baghdad",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/national-security/2026/03/24/us-orders-82nd-airborne-iran-paratroopers-kharg/",
+        "article_len_chars": 3124,
+        "method": "llm_only",
+        "duration_ms": 1678.3622920047492,
+        "entity_count": 24,
+        "relation_count": 11,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1462,
+        "entities": [
+          {
+            "name": "Pentagon",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "82nd Airborne Division",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Donald Trump",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "U.S.",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Middle East",
+            "type": "REGION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Fort Bragg",
+            "type": "LOCATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "North Carolina",
+            "type": "LOCATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "1st Brigade Combat Team",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Immediate Response Force",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Maj. Gen. Brandon Tegtmeier",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Fort Polk",
+            "type": "LOCATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Louisiana",
+            "type": "LOCATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Tripoli Amphibious Ready Group",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "31st Marine Expeditionary Unit",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Okinawa",
+            "type": "LOCATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Japan",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "11th Marine Expeditionary Unit",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "San Diego",
+            "type": "LOCATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "USS Boxer",
+            "type": "WEAPON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Kharg Island",
+            "type": "LOCATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "LOCATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Tehran",
+            "type": "LOCATION",
+            "confidence": 0.7
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/26/iran-gulf-us-peace-deal-trump/",
+        "article_len_chars": 6340,
+        "method": "llm_only",
+        "duration_ms": 1274.0027079998981,
+        "entity_count": 14,
+        "relation_count": 8,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1213,
+        "entities": [
+          {
+            "name": "Trump administration",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "U.S.",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Saudi Arabia",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "United Arab Emirates",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Tehran",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "LOCATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "LOCATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Qatar",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Kuwait",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Bahrain",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Oman",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Donald Trump",
+            "type": "PERSON",
+            "confidence": 0.7
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/immigration/2026/03/26/immigrants-cities-census-population-growth/",
+        "article_len_chars": 3456,
+        "method": "llm_only",
+        "duration_ms": 1748.8888340012636,
+        "entity_count": 21,
+        "relation_count": 19,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1527,
+        "entities": [
+          {
+            "name": "United States",
+            "type": "COUNTRY",
+            "confidence": 0.95
+          },
+          {
+            "name": "Brookings Institution",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "U.S. Census Bureau",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Trump administration",
+            "type": "ORGANIZATION",
+            "confidence": 0.85
+          },
+          {
+            "name": "New York",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Los Angeles",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Chicago",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Washington",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "William Frey",
+            "type": "PERSON",
+            "confidence": 0.95
+          },
+          {
+            "name": "George M. Hayward",
+            "type": "PERSON",
+            "confidence": 0.95
+          },
+          {
+            "name": "Laredo",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Texas",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Yuma",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Arizona",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "El Centro",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "California",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Florida",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Georgia",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "South Carolina",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "North Carolina",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Virginia",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/iraq-strike-attack-clinic-united-states-pmf-iran/",
+        "article_len_chars": 5415,
+        "method": "llm_only",
+        "duration_ms": 1700.4634579934645,
+        "entity_count": 18,
+        "relation_count": 10,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1340,
+        "entities": [
+          {
+            "name": "Iraq",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "United States",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Sabah al-Numan",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Tim Hawkins",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Islamic State",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "U.S. military",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Central Command",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "The Washington Post",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Iraqi government",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Pentagon",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "A-10C Thunderbolt II",
+            "type": "WEAPON",
+            "confidence": 0.7
+          },
+          {
+            "name": "U.S. Air Force",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Muwaffaq Salti Air Base",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Anbar province",
+            "type": "LOCATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Navy",
+            "type": "ORGANIZATION",
+            "confidence": 0.7
+          },
+          {
+            "name": "Ahmed Rasheed",
+            "type": "PERSON",
+            "confidence": 0.6
+          },
+          {
+            "name": "Open Street Maps",
+            "type": "TECHNOLOGY",
+            "confidence": 0.6
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/us-iran-war-trump-talks-pakistan/",
+        "article_len_chars": 4917,
+        "method": "llm_only",
+        "duration_ms": 1653.420458023902,
+        "entity_count": 20,
+        "relation_count": 14,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1403,
+        "entities": [
+          {
+            "name": "United States",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Pakistan",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Egypt",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Turkey",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Hezbollah",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Hamas",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Houthis",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Badr Abdelatty",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Karoline Leavitt",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Esmaeil Baqaei",
+            "type": "PERSON",
+            "confidence": 0.7
+          },
+          {
+            "name": "Syed Muhammad Ali",
+            "type": "PERSON",
+            "confidence": 0.6
+          },
+          {
+            "name": "Shehbaz Sharif",
+            "type": "PERSON",
+            "confidence": 0.6
+          },
+          {
+            "name": "Asim Munir",
+            "type": "PERSON",
+            "confidence": 0.6
+          },
+          {
+            "name": "White House",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Pentagon",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "LOCATION",
+            "confidence": 0.6
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "LOCATION",
+            "confidence": 0.6
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.7
+          },
+          {
+            "name": "Cairo",
+            "type": "LOCATION",
+            "confidence": 0.6
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.livemint.com/companies/from-beer-to-cosmetics-asia-feels-full-force-of-war-fuelled-energy-crisis-11774566121226.html",
+        "article_len_chars": 6494,
+        "method": "llm_only",
+        "duration_ms": 1517.758333007805,
+        "entity_count": 18,
+        "relation_count": 9,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 1277,
+        "entities": [
+          {
+            "name": "Asia",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Middle East",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "South Korea",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Iran",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          },
+          {
+            "name": "Choi Gun-soo",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Hyunjoo Jin",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Daewoung Kim",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Sophie Yu",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "Samyang Foods",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Nongshim",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Yonwoo",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "L'Oreal",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Amorepacific",
+            "type": "ORGANIZATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "LOCATION",
+            "confidence": 0.8
+          },
+          {
+            "name": "U.S.",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "Israel",
+            "type": "COUNTRY",
+            "confidence": 0.8
+          },
+          {
+            "name": "COVID-19",
+            "type": "EVENT",
+            "confidence": 0.8
+          },
+          {
+            "name": "Iran war",
+            "type": "EVENT",
+            "confidence": 0.9
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.foreignaffairs.com/iran/false-promise-flexible-realism",
+        "article_len_chars": 622,
+        "method": "llm_only",
+        "duration_ms": 1269.6110830001999,
+        "entity_count": 10,
+        "relation_count": 8,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 609,
+        "entities": [
+          {
+            "name": "REBECCA LISSNER",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "MIRA RAPP-HOOPER",
+            "type": "PERSON",
+            "confidence": 0.9
+          },
+          {
+            "name": "Council on Foreign Relations",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Brookings Institution",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "Biden administration",
+            "type": "EVENT",
+            "confidence": 0.8
+          },
+          {
+            "name": "U.S. National Security Council",
+            "type": "ORGANIZATION",
+            "confidence": 0.9
+          },
+          {
+            "name": "U.S. Foreign Policy",
+            "type": "POLICY",
+            "confidence": 0.8
+          },
+          {
+            "name": "An Open World: How America Can Win the Contest for Twenty-First-Century Order",
+            "type": "EVENT",
+            "confidence": 0.7
+          },
+          {
+            "name": "Biden",
+            "type": "PERSON",
+            "confidence": 0.8
+          },
+          {
+            "name": "U.S.",
+            "type": "COUNTRY",
+            "confidence": 0.9
+          }
+        ],
+        "error": null
+      }
+    ],
+    "gliner2_llm_hybrid": [
+      {
+        "article_url": "https://www.livemint.com/companies/news/anthropic-wins-preliminary-injunction-against-pentagon-in-landmark-ai-blacklisting-case-11774567078903.html",
+        "article_len_chars": 5028,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 12507.890917011537,
+        "entity_count": 16,
+        "relation_count": 9,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.9917097687721252
+          },
+          {
+            "name": "Pete Hegseth",
+            "type": "Person",
+            "confidence": 0.9872308373451233
+          },
+          {
+            "name": "Rita Lin",
+            "type": "Person",
+            "confidence": 0.9557410478591919
+          },
+          {
+            "name": "Anthropic",
+            "type": "Organization",
+            "confidence": 0.9998915195465088
+          },
+          {
+            "name": "Pentagon",
+            "type": "Organization",
+            "confidence": 0.9997134804725647
+          },
+          {
+            "name": "Microsoft",
+            "type": "Organization",
+            "confidence": 0.9996950626373291
+          },
+          {
+            "name": "Amazon",
+            "type": "Organization",
+            "confidence": 0.9995655417442322
+          },
+          {
+            "name": "Palantir",
+            "type": "Organization",
+            "confidence": 0.9993172883987427
+          },
+          {
+            "name": "Department of Defense",
+            "type": "Organization",
+            "confidence": 0.982848584651947
+          },
+          {
+            "name": "Trump administration",
+            "type": "Policy",
+            "confidence": 0.6253764629364014
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.9661846160888672
+          },
+          {
+            "name": "San Francisco",
+            "type": "Location",
+            "confidence": 0.959369957447052
+          },
+          {
+            "name": "Washington, D.C.",
+            "type": "Location",
+            "confidence": 0.9344851970672607
+          },
+          {
+            "name": "Claude models",
+            "type": "Technology",
+            "confidence": 0.9690573215484619
+          },
+          {
+            "name": "AI models",
+            "type": "Technology",
+            "confidence": 0.9136361479759216
+          },
+          {
+            "name": "autonomous weapons",
+            "type": "Military_Asset",
+            "confidence": 0.8557341694831848
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.livemint.com/news/us-news/long-airport-queues-to-end-soon-donald-trump-moves-to-pay-tsa-officers-immediately-amid-dhs-shutdown-11774567994978.html",
+        "article_len_chars": 5183,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 11789.419708016794,
+        "entity_count": 13,
+        "relation_count": 8,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Markwayne Mullin",
+            "type": "Person",
+            "confidence": 0.9980247020721436
+          },
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.9860301613807678
+          },
+          {
+            "name": "Karoline Leavitt",
+            "type": "Person",
+            "confidence": 0.982822835445404
+          },
+          {
+            "name": "Charles Schumer",
+            "type": "Person",
+            "confidence": 0.8272747993469238
+          },
+          {
+            "name": "U.S. Immigration and Customs Enforcement",
+            "type": "Organization",
+            "confidence": 0.9833563566207886
+          },
+          {
+            "name": "Department of Homeland Security",
+            "type": "Organization",
+            "confidence": 0.9283085465431213
+          },
+          {
+            "name": "Department of Homeland Security",
+            "type": "Organization",
+            "confidence": 0.8785511255264282
+          },
+          {
+            "name": "Transportation Security Administration",
+            "type": "Organization",
+            "confidence": 0.8744393587112427
+          },
+          {
+            "name": "The White House",
+            "type": "Organization",
+            "confidence": 0.7418804168701172
+          },
+          {
+            "name": "Republican Party",
+            "type": "Organization",
+            "confidence": 0.5207691192626953
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.952369749546051
+          },
+          {
+            "name": "Minneapolis",
+            "type": "Location",
+            "confidence": 0.9852476119995117
+          },
+          {
+            "name": "Open Border Policies",
+            "type": "Policy",
+            "confidence": 0.8876155018806458
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/cities/chennai/tn-election-2026-water-woes-poor-sewer-network-mar-this-constituency-in-transition/article70788955.ece",
+        "article_len_chars": 493,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 9735.109125002054,
+        "entity_count": 7,
+        "relation_count": 3,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 223,
+        "entities": [
+          {
+            "name": "M. Jayanthi",
+            "type": "Person",
+            "confidence": 0.9994664788246155
+          },
+          {
+            "name": "Avadi",
+            "type": "Location",
+            "confidence": 0.9997276663780212
+          },
+          {
+            "name": "Pattabiram",
+            "type": "Location",
+            "confidence": 0.9984789490699768
+          },
+          {
+            "name": "Thiruninravur",
+            "type": "Location",
+            "confidence": 0.9961000680923462
+          },
+          {
+            "name": "Thirumullaivoyal",
+            "type": "Location",
+            "confidence": 0.9874304533004761
+          },
+          {
+            "name": "Tiruvallur district",
+            "type": "Location",
+            "confidence": 0.9179490804672241
+          },
+          {
+            "name": "pipeline",
+            "type": "Technology",
+            "confidence": 0.5498953461647034
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.indiatoday.in/world/story/nicolas-maduro-makes-first-court-appearance-as-us-judge-questions-sanctions-row-2887657-2026-03-27?utm_source=rss",
+        "article_len_chars": 4322,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 14832.661583001027,
+        "entity_count": 21,
+        "relation_count": 8,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Cilia Flores",
+            "type": "Person",
+            "confidence": 0.9975086450576782
+          },
+          {
+            "name": "Nicol\u00e1s Maduro",
+            "type": "Person",
+            "confidence": 0.9923668503761292
+          },
+          {
+            "name": "Julian Assange",
+            "type": "Person",
+            "confidence": 0.9919248223304749
+          },
+          {
+            "name": "Kyle Wirshba",
+            "type": "Person",
+            "confidence": 0.9898874163627625
+          },
+          {
+            "name": "Alvin Hellerstein",
+            "type": "Person",
+            "confidence": 0.9107555747032166
+          },
+          {
+            "name": "Pollack",
+            "type": "Person",
+            "confidence": 0.9079926609992981
+          },
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.883931040763855
+          },
+          {
+            "name": "Bill Clinton",
+            "type": "Person",
+            "confidence": 0.8647758960723877
+          },
+          {
+            "name": "Reuters",
+            "type": "Organization",
+            "confidence": 0.9792613387107849
+          },
+          {
+            "name": "WikiLeaks",
+            "type": "Organization",
+            "confidence": 0.9785211086273193
+          },
+          {
+            "name": "U.S. Department of the Treasury",
+            "type": "Organization",
+            "confidence": 0.8063910603523254
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.9903912544250488
+          },
+          {
+            "name": "Venezuela",
+            "type": "Country",
+            "confidence": 0.9836057424545288
+          },
+          {
+            "name": "New York City",
+            "type": "Location",
+            "confidence": 0.997130811214447
+          },
+          {
+            "name": "Caracas",
+            "type": "Location",
+            "confidence": 0.9968394041061401
+          },
+          {
+            "name": "Brooklyn",
+            "type": "Location",
+            "confidence": 0.9213115572929382
+          },
+          {
+            "name": "Manhattan federal court",
+            "type": "Organization",
+            "confidence": 0.6229709386825562
+          },
+          {
+            "name": "Narcoterrorism Law",
+            "type": "Policy",
+            "confidence": 0.888581395149231
+          },
+          {
+            "name": "United States sanctions",
+            "type": "Policy",
+            "confidence": 0.730453372001648
+          },
+          {
+            "name": "sanctions",
+            "type": "Policy",
+            "confidence": 0.5559772253036499
+          },
+          {
+            "name": "drug trafficking",
+            "type": "Resource",
+            "confidence": 0.552344799041748
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.ndtv.com/world-news/iran-war-us-deploys-uncrewed-drone-boats-in-conflict-with-iran-11272030#publisher=newsstand",
+        "article_len_chars": 2735,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 18449.330665986054,
+        "entity_count": 24,
+        "relation_count": 9,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Tim Hawkins",
+            "type": "Person",
+            "confidence": 0.9995335340499878
+          },
+          {
+            "name": "Reuters",
+            "type": "Organization",
+            "confidence": 0.9977210164070129
+          },
+          {
+            "name": "Pentagon",
+            "type": "Organization",
+            "confidence": 0.9718001484870911
+          },
+          {
+            "name": "Black Sea",
+            "type": "Location",
+            "confidence": 0.9619183540344238
+          },
+          {
+            "name": "US 5th Fleet",
+            "type": "Organization",
+            "confidence": 0.774359941482544
+          },
+          {
+            "name": "United States Navy",
+            "type": "Organization",
+            "confidence": 0.6745953559875488
+          },
+          {
+            "name": "NDTV",
+            "type": "Organization",
+            "confidence": 0.6726662516593933
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9956653714179993
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.9275709986686707
+          },
+          {
+            "name": "Israel",
+            "type": "Country",
+            "confidence": 0.9098243713378906
+          },
+          {
+            "name": "Russia",
+            "type": "Country",
+            "confidence": 0.9086790680885315
+          },
+          {
+            "name": "Ukraine",
+            "type": "Country",
+            "confidence": 0.9023173451423645
+          },
+          {
+            "name": "China",
+            "type": "Country",
+            "confidence": 0.78555828332901
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.579135000705719
+          },
+          {
+            "name": "Middle East",
+            "type": "Location",
+            "confidence": 0.9728904962539673
+          },
+          {
+            "name": "Pacific Ocean",
+            "type": "Location",
+            "confidence": 0.8912272453308105
+          },
+          {
+            "name": "Gulf",
+            "type": "Location",
+            "confidence": 0.8887015581130981
+          },
+          {
+            "name": "Washington",
+            "type": "Location",
+            "confidence": 0.7890157699584961
+          },
+          {
+            "name": "Black Sea",
+            "type": "Location",
+            "confidence": 0.7784692645072937
+          },
+          {
+            "name": "drone speedboats",
+            "type": "Technology",
+            "confidence": 0.9006178975105286
+          },
+          {
+            "name": "unmanned systems",
+            "type": "Technology",
+            "confidence": 0.5651405453681946
+          },
+          {
+            "name": "submarines",
+            "type": "Military_Asset",
+            "confidence": 0.8818599581718445
+          },
+          {
+            "name": "manned ships",
+            "type": "Military_Asset",
+            "confidence": 0.7402287125587463
+          },
+          {
+            "name": "oil",
+            "type": "Resource",
+            "confidence": 0.984684407711029
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.ndtv.com/world-news/donald-trump-on-taking-control-of-irans-oil-amid-middle-east-tensions-11271965#publisher=newsstand",
+        "article_len_chars": 1993,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 11206.552125018789,
+        "entity_count": 14,
+        "relation_count": 10,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.9995613694190979
+          },
+          {
+            "name": "Delcy Rodriguez",
+            "type": "Person",
+            "confidence": 0.9993215799331665
+          },
+          {
+            "name": "Nicolas Maduro",
+            "type": "Person",
+            "confidence": 0.9982713460922241
+          },
+          {
+            "name": "NDTV",
+            "type": "Organization",
+            "confidence": 0.9271180629730225
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.9908620119094849
+          },
+          {
+            "name": "Venezuela",
+            "type": "Country",
+            "confidence": 0.9905767440795898
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9898945689201355
+          },
+          {
+            "name": "Saudi Arabia",
+            "type": "Country",
+            "confidence": 0.9242496490478516
+          },
+          {
+            "name": "Russia",
+            "type": "Country",
+            "confidence": 0.9076604843139648
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.5655665993690491
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "Location",
+            "confidence": 0.986402690410614
+          },
+          {
+            "name": "White House",
+            "type": "Location",
+            "confidence": 0.9351950287818909
+          },
+          {
+            "name": "Middle East",
+            "type": "Location",
+            "confidence": 0.6708889007568359
+          },
+          {
+            "name": "oil",
+            "type": "Resource",
+            "confidence": 0.9998959302902222
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/international/ballots-without-a-country-a-quiet-case-for-pluralism-in-myanmar/article70788535.ece",
+        "article_len_chars": 12350,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 11547.269458009396,
+        "entity_count": 11,
+        "relation_count": 8,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Aung San Suu Kyi",
+            "type": "Person",
+            "confidence": 0.9997865557670593
+          },
+          {
+            "name": "Thein Sein",
+            "type": "Person",
+            "confidence": 0.9986498951911926
+          },
+          {
+            "name": "Win Myint",
+            "type": "Person",
+            "confidence": 0.9981123208999634
+          },
+          {
+            "name": "Min Aung Hlaing",
+            "type": "Person",
+            "confidence": 0.9973286390304565
+          },
+          {
+            "name": "Barack Obama",
+            "type": "Person",
+            "confidence": 0.9876387119293213
+          },
+          {
+            "name": "Association of Southeast Asian Nations",
+            "type": "Organization",
+            "confidence": 0.9413825273513794
+          },
+          {
+            "name": "National League for Democracy",
+            "type": "Organization",
+            "confidence": 0.8541503548622131
+          },
+          {
+            "name": "Myanmar",
+            "type": "Country",
+            "confidence": 0.9999232292175293
+          },
+          {
+            "name": "West Asia",
+            "type": "Location",
+            "confidence": 0.955116868019104
+          },
+          {
+            "name": "China",
+            "type": "Country",
+            "confidence": 0.5857081413269043
+          },
+          {
+            "name": "voter turnout",
+            "type": "Economic_Indicator",
+            "confidence": 0.8209450840950012
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.indiatoday.in/world/story/toys-compared-to-ours-president-trump-ridicules-uk-carriers-amid-iran-war-tensions-2887656-2026-03-27?utm_source=rss",
+        "article_len_chars": 1971,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 18515.172499988694,
+        "entity_count": 18,
+        "relation_count": 6,
+        "hallucinated_entity_count": 3,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.9995879530906677
+          },
+          {
+            "name": "John Healey",
+            "type": "Person",
+            "confidence": 0.9979572296142578
+          },
+          {
+            "name": "North Atlantic Treaty Organization",
+            "type": "Organization",
+            "confidence": 0.9924526810646057
+          },
+          {
+            "name": "Royal Navy",
+            "type": "Organization",
+            "confidence": 0.9054955840110779
+          },
+          {
+            "name": "Tehran",
+            "type": "Location",
+            "confidence": 0.7243105173110962
+          },
+          {
+            "name": "Germany",
+            "type": "Country",
+            "confidence": 0.543962299823761
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.969978392124176
+          },
+          {
+            "name": "United Kingdom",
+            "type": "Country",
+            "confidence": 0.9594398140907288
+          },
+          {
+            "name": "Great Britain",
+            "type": "Location",
+            "confidence": 0.9345004558563232
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9017698764801025
+          },
+          {
+            "name": "Cyprus",
+            "type": "Country",
+            "confidence": 0.7803558111190796
+          },
+          {
+            "name": "Diego Garcia",
+            "type": "Location",
+            "confidence": 0.9441176652908325
+          },
+          {
+            "name": "White House",
+            "type": "Location",
+            "confidence": 0.5803525447845459
+          },
+          {
+            "name": "Aircraft carrier",
+            "type": "Military_Asset",
+            "confidence": 0.9939334988594055
+          },
+          {
+            "name": "HMS Dragon",
+            "type": "Military_Asset",
+            "confidence": 0.8174718022346497
+          },
+          {
+            "name": "B-2 bombers",
+            "type": "Military_Asset",
+            "confidence": 0.7484162449836731
+          },
+          {
+            "name": "warships",
+            "type": "Military_Asset",
+            "confidence": 0.7312297821044922
+          },
+          {
+            "name": "frigate",
+            "type": "Military_Asset",
+            "confidence": 0.5442059636116028
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/iran-missiles-israel-air-defense/",
+        "article_len_chars": 10089,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 18500.11262501357,
+        "entity_count": 19,
+        "relation_count": 4,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "David Azran",
+            "type": "Person",
+            "confidence": 0.9992187023162842
+          },
+          {
+            "name": "Ran Kochav",
+            "type": "Person",
+            "confidence": 0.9961710572242737
+          },
+          {
+            "name": "Mohammad Bagher Ghalibaf",
+            "type": "Person",
+            "confidence": 0.9837215542793274
+          },
+          {
+            "name": "Nadav Shoshani",
+            "type": "Person",
+            "confidence": 0.9134718775749207
+          },
+          {
+            "name": "Washington Post",
+            "type": "Organization",
+            "confidence": 0.8981113433837891
+          },
+          {
+            "name": "U.S. Army",
+            "type": "Organization",
+            "confidence": 0.801436185836792
+          },
+          {
+            "name": "X",
+            "type": "Organization",
+            "confidence": 0.6864914894104004
+          },
+          {
+            "name": "Israel Defense Forces",
+            "type": "Organization",
+            "confidence": 0.5449512004852295
+          },
+          {
+            "name": "Israel",
+            "type": "Country",
+            "confidence": 0.9996139407157898
+          },
+          {
+            "name": "Dimona",
+            "type": "Location",
+            "confidence": 0.9990416169166565
+          },
+          {
+            "name": "Arad",
+            "type": "Location",
+            "confidence": 0.9990052580833435
+          },
+          {
+            "name": "Iron Dome",
+            "type": "Technology",
+            "confidence": 0.9414855241775513
+          },
+          {
+            "name": "THAAD",
+            "type": "Technology",
+            "confidence": 0.5924016833305359
+          },
+          {
+            "name": "Arrow",
+            "type": "Technology",
+            "confidence": 0.5081859230995178
+          },
+          {
+            "name": "interceptor missiles",
+            "type": "Military_Asset",
+            "confidence": 0.8372330665588379
+          },
+          {
+            "name": "ballistic missiles",
+            "type": "Military_Asset",
+            "confidence": 0.7916198372840881
+          },
+          {
+            "name": "munitions",
+            "type": "Military_Asset",
+            "confidence": 0.522419810295105
+          },
+          {
+            "name": "missiles",
+            "type": "Military_Asset",
+            "confidence": 0.5195449590682983
+          },
+          {
+            "name": "nuclear facility",
+            "type": "Resource",
+            "confidence": 0.8374062180519104
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/national/haryana/haryanas-cotton-farms-holding-on-by-a-thread/article70784114.ece",
+        "article_len_chars": 11212,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 12541.22083299444,
+        "entity_count": 23,
+        "relation_count": 11,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Satyavan",
+            "type": "Person",
+            "confidence": 0.9996656179428101
+          },
+          {
+            "name": "Vinay Mehla",
+            "type": "Person",
+            "confidence": 0.9989469647407532
+          },
+          {
+            "name": "Dayanand Dhaka",
+            "type": "Person",
+            "confidence": 0.9970840811729431
+          },
+          {
+            "name": "CCSHAU",
+            "type": "Organization",
+            "confidence": 0.9119192957878113
+          },
+          {
+            "name": "Department of Agricultural Economics",
+            "type": "Organization",
+            "confidence": 0.8563557267189026
+          },
+          {
+            "name": "Ministry of Agriculture and Farmers Welfare",
+            "type": "Organization",
+            "confidence": 0.8432448506355286
+          },
+          {
+            "name": "Chaudhary Charan Singh Haryana Agricultural University",
+            "type": "Organization",
+            "confidence": 0.5927390456199646
+          },
+          {
+            "name": "Fatehabad",
+            "type": "Location",
+            "confidence": 0.9981070756912231
+          },
+          {
+            "name": "Hisar",
+            "type": "Location",
+            "confidence": 0.9976058006286621
+          },
+          {
+            "name": "Charkhi Dadri",
+            "type": "Location",
+            "confidence": 0.997138261795044
+          },
+          {
+            "name": "Haryana",
+            "type": "Location",
+            "confidence": 0.9951320886611938
+          },
+          {
+            "name": "Sirsa",
+            "type": "Location",
+            "confidence": 0.9947545528411865
+          },
+          {
+            "name": "Jhajjar",
+            "type": "Location",
+            "confidence": 0.9946708083152771
+          },
+          {
+            "name": "Jind",
+            "type": "Location",
+            "confidence": 0.9944702386856079
+          },
+          {
+            "name": "Bhiwani",
+            "type": "Location",
+            "confidence": 0.9935052394866943
+          },
+          {
+            "name": "Rewari",
+            "type": "Location",
+            "confidence": 0.9496802091598511
+          },
+          {
+            "name": "Delhi",
+            "type": "Location",
+            "confidence": 0.8696473836898804
+          },
+          {
+            "name": "MSP",
+            "type": "Policy",
+            "confidence": 0.5656622648239136
+          },
+          {
+            "name": "Minimum Support Price",
+            "type": "Policy",
+            "confidence": 0.5624459385871887
+          },
+          {
+            "name": "Bacillus thuringiensis genes",
+            "type": "Technology",
+            "confidence": 0.6084340214729309
+          },
+          {
+            "name": "gross returns per acre",
+            "type": "Economic_Indicator",
+            "confidence": 0.7404554486274719
+          },
+          {
+            "name": "net returns",
+            "type": "Economic_Indicator",
+            "confidence": 0.5101585388183594
+          },
+          {
+            "name": "cotton",
+            "type": "Resource",
+            "confidence": 0.5697277784347534
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/ukraine-russia-drone-attack/",
+        "article_len_chars": 3901,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 12062.882083002478,
+        "entity_count": 26,
+        "relation_count": 9,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Aleksandr Drozdenko",
+            "type": "Person",
+            "confidence": 0.9965090155601501
+          },
+          {
+            "name": "Volodymyr Zelensky",
+            "type": "Person",
+            "confidence": 0.9948453903198242
+          },
+          {
+            "name": "United Nations Educational, Scientific and Cultural Organization",
+            "type": "Organization",
+            "confidence": 0.8770897388458252
+          },
+          {
+            "name": "The Kremlin",
+            "type": "Organization",
+            "confidence": 0.7278666496276855
+          },
+          {
+            "name": "Ukrainian Air Force",
+            "type": "Organization",
+            "confidence": 0.6929733157157898
+          },
+          {
+            "name": "Security Service of Ukraine",
+            "type": "Organization",
+            "confidence": 0.5656602382659912
+          },
+          {
+            "name": "Russia",
+            "type": "Country",
+            "confidence": 0.9819276332855225
+          },
+          {
+            "name": "Ukraine",
+            "type": "Country",
+            "confidence": 0.974850058555603
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.7879728078842163
+          },
+          {
+            "name": "Finland",
+            "type": "Country",
+            "confidence": 0.7402278184890747
+          },
+          {
+            "name": "Lviv",
+            "type": "Location",
+            "confidence": 0.9971330165863037
+          },
+          {
+            "name": "Primorsk",
+            "type": "Location",
+            "confidence": 0.9820408821105957
+          },
+          {
+            "name": "Moscow",
+            "type": "Location",
+            "confidence": 0.9756542444229126
+          },
+          {
+            "name": "Ust-Luga",
+            "type": "Location",
+            "confidence": 0.9754879474639893
+          },
+          {
+            "name": "St. Petersburg",
+            "type": "Location",
+            "confidence": 0.9426286816596985
+          },
+          {
+            "name": "Leningrad",
+            "type": "Location",
+            "confidence": 0.9246043562889099
+          },
+          {
+            "name": "Baltic Sea",
+            "type": "Location",
+            "confidence": 0.9205884337425232
+          },
+          {
+            "name": "KYIV",
+            "type": "Location",
+            "confidence": 0.8651294112205505
+          },
+          {
+            "name": "Ivano-Frankivsk",
+            "type": "Location",
+            "confidence": 0.7317230701446533
+          },
+          {
+            "name": "sanctions",
+            "type": "Policy",
+            "confidence": 0.9750919938087463
+          },
+          {
+            "name": "drones",
+            "type": "Technology",
+            "confidence": 0.9668785333633423
+          },
+          {
+            "name": "cruise missiles",
+            "type": "Technology",
+            "confidence": 0.6604305505752563
+          },
+          {
+            "name": "oil prices",
+            "type": "Economic_Indicator",
+            "confidence": 0.9070439338684082
+          },
+          {
+            "name": "ballistic and cruise missiles",
+            "type": "Military_Asset",
+            "confidence": 0.7329767942428589
+          },
+          {
+            "name": "oil",
+            "type": "Resource",
+            "confidence": 0.999823272228241
+          },
+          {
+            "name": "commodities",
+            "type": "Resource",
+            "confidence": 0.8195685148239136
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/26/us-israel-iran-navy-chief-killed-hormuz/",
+        "article_len_chars": 5798,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 15588.165332999779,
+        "entity_count": 25,
+        "relation_count": 6,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.9994087219238281
+          },
+          {
+            "name": "Steve Witkoff",
+            "type": "Person",
+            "confidence": 0.9977571368217468
+          },
+          {
+            "name": "Alireza Tangsiri",
+            "type": "Person",
+            "confidence": 0.9826381802558899
+          },
+          {
+            "name": "Israel Katz",
+            "type": "Person",
+            "confidence": 0.9697360992431641
+          },
+          {
+            "name": "The White House",
+            "type": "Organization",
+            "confidence": 0.8880085945129395
+          },
+          {
+            "name": "Islamic Revolutionary Guard Corps",
+            "type": "Organization",
+            "confidence": 0.8017997741699219
+          },
+          {
+            "name": "Tehran",
+            "type": "Location",
+            "confidence": 0.5579433441162109
+          },
+          {
+            "name": "United States Department of the Treasury",
+            "type": "Organization",
+            "confidence": 0.508065938949585
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9929787516593933
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.92078697681427
+          },
+          {
+            "name": "Israel",
+            "type": "Country",
+            "confidence": 0.8804820775985718
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.8582073450088501
+          },
+          {
+            "name": "Lebanon",
+            "type": "Country",
+            "confidence": 0.689068615436554
+          },
+          {
+            "name": "Pakistan",
+            "type": "Country",
+            "confidence": 0.5164556503295898
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "Location",
+            "confidence": 0.9971544742584229
+          },
+          {
+            "name": "sanctions",
+            "type": "Policy",
+            "confidence": 0.974249541759491
+          },
+          {
+            "name": "ceasefire deal",
+            "type": "Policy",
+            "confidence": 0.627834677696228
+          },
+          {
+            "name": "S&P 500",
+            "type": "Economic_Indicator",
+            "confidence": 0.9776195287704468
+          },
+          {
+            "name": "oil prices",
+            "type": "Economic_Indicator",
+            "confidence": 0.9564228653907776
+          },
+          {
+            "name": "Nasdaq",
+            "type": "Economic_Indicator",
+            "confidence": 0.7702330350875854
+          },
+          {
+            "name": "energy prices",
+            "type": "Economic_Indicator",
+            "confidence": 0.5305095911026001
+          },
+          {
+            "name": "military force",
+            "type": "Military_Asset",
+            "confidence": 0.6070919036865234
+          },
+          {
+            "name": "oil",
+            "type": "Resource",
+            "confidence": 0.9996116757392883
+          },
+          {
+            "name": "liquefied natural gas",
+            "type": "Resource",
+            "confidence": 0.7973398566246033
+          },
+          {
+            "name": "energy",
+            "type": "Resource",
+            "confidence": 0.6551433801651001
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/weather/2026/03/24/middle-east-storm-flooding-tornado-iran-dubai/",
+        "article_len_chars": 5704,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 12709.969042014563,
+        "entity_count": 25,
+        "relation_count": 2,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Ben Noll",
+            "type": "Person",
+            "confidence": 0.9476422667503357
+          },
+          {
+            "name": "education minister",
+            "type": "Person",
+            "confidence": 0.7232625484466553
+          },
+          {
+            "name": "The Washington Post",
+            "type": "Organization",
+            "confidence": 0.9417508244514465
+          },
+          {
+            "name": "Health and Population Ministry",
+            "type": "Organization",
+            "confidence": 0.7802112102508545
+          },
+          {
+            "name": "Labor Ministry",
+            "type": "Organization",
+            "confidence": 0.7403780221939087
+          },
+          {
+            "name": "National Oceanic and Atmospheric Administration",
+            "type": "Organization",
+            "confidence": 0.5342446565628052
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9163038730621338
+          },
+          {
+            "name": "Israel",
+            "type": "Country",
+            "confidence": 0.8282860517501831
+          },
+          {
+            "name": "Qatar",
+            "type": "Country",
+            "confidence": 0.8227381706237793
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.8000200390815735
+          },
+          {
+            "name": "Egypt",
+            "type": "Country",
+            "confidence": 0.746707558631897
+          },
+          {
+            "name": "Dubai",
+            "type": "Location",
+            "confidence": 0.999512791633606
+          },
+          {
+            "name": "Abu Dhabi",
+            "type": "Location",
+            "confidence": 0.9992679953575134
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "Location",
+            "confidence": 0.9978190660476685
+          },
+          {
+            "name": "Baghdad",
+            "type": "Location",
+            "confidence": 0.99198979139328
+          },
+          {
+            "name": "Arabian Peninsula",
+            "type": "Location",
+            "confidence": 0.9908578991889954
+          },
+          {
+            "name": "Middle East",
+            "type": "Location",
+            "confidence": 0.987556517124176
+          },
+          {
+            "name": "Red Sea",
+            "type": "Location",
+            "confidence": 0.9613866209983826
+          },
+          {
+            "name": "Saudi Arabia",
+            "type": "Location",
+            "confidence": 0.9485247731208801
+          },
+          {
+            "name": "Mediterranean",
+            "type": "Location",
+            "confidence": 0.8344017863273621
+          },
+          {
+            "name": "northern Oman",
+            "type": "Location",
+            "confidence": 0.8290486931800842
+          },
+          {
+            "name": "Gulf of Oman",
+            "type": "Location",
+            "confidence": 0.7693211436271667
+          },
+          {
+            "name": "occupational safety and health guidelines",
+            "type": "Policy",
+            "confidence": 0.8274350762367249
+          },
+          {
+            "name": "war",
+            "type": "Policy",
+            "confidence": 0.5222828388214111
+          },
+          {
+            "name": "supercells",
+            "type": "Technology",
+            "confidence": 0.6521603465080261
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/national-security/2026/03/24/us-orders-82nd-airborne-iran-paratroopers-kharg/",
+        "article_len_chars": 3124,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 14745.185208012117,
+        "entity_count": 22,
+        "relation_count": 9,
+        "hallucinated_entity_count": 2,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Brandon Tegtmeier",
+            "type": "Person",
+            "confidence": 0.9918293356895447
+          },
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.9822894930839539
+          },
+          {
+            "name": "Pentagon",
+            "type": "Organization",
+            "confidence": 0.9720696210861206
+          },
+          {
+            "name": "Tehran",
+            "type": "Location",
+            "confidence": 0.7563544511795044
+          },
+          {
+            "name": "United States Marine Corps",
+            "type": "Organization",
+            "confidence": 0.5937921404838562
+          },
+          {
+            "name": "Washington, D.C.",
+            "type": "Location",
+            "confidence": 0.566889762878418
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9962058067321777
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.839860737323761
+          },
+          {
+            "name": "Middle East",
+            "type": "Location",
+            "confidence": 0.9925181865692139
+          },
+          {
+            "name": "Kharg Island",
+            "type": "Location",
+            "confidence": 0.9869740009307861
+          },
+          {
+            "name": "San Diego, California",
+            "type": "Location",
+            "confidence": 0.9826922416687012
+          },
+          {
+            "name": "Fort Bragg, North Carolina",
+            "type": "Location",
+            "confidence": 0.967139720916748
+          },
+          {
+            "name": "Fort Polk, Louisiana",
+            "type": "Location",
+            "confidence": 0.9612916707992554
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "Location",
+            "confidence": 0.9247771501541138
+          },
+          {
+            "name": "Okinawa, Japan",
+            "type": "Location",
+            "confidence": 0.8769755363464355
+          },
+          {
+            "name": "North Carolina",
+            "type": "Location",
+            "confidence": 0.7456120252609253
+          },
+          {
+            "name": "Louisiana",
+            "type": "Location",
+            "confidence": 0.6827524900436401
+          },
+          {
+            "name": "Japan",
+            "type": "Country",
+            "confidence": 0.5934943556785583
+          },
+          {
+            "name": "missiles",
+            "type": "Technology",
+            "confidence": 0.5520514845848083
+          },
+          {
+            "name": "USS Boxer",
+            "type": "Military_Asset",
+            "confidence": 0.8503283858299255
+          },
+          {
+            "name": "warships",
+            "type": "Military_Asset",
+            "confidence": 0.7822027206420898
+          },
+          {
+            "name": "oil",
+            "type": "Resource",
+            "confidence": 0.9999258518218994
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/26/iran-gulf-us-peace-deal-trump/",
+        "article_len_chars": 6340,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 11274.109916994348,
+        "entity_count": 22,
+        "relation_count": 6,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Mohammad Bagher Ghalibaf",
+            "type": "Person",
+            "confidence": 0.9977387189865112
+          },
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.5165320634841919
+          },
+          {
+            "name": "United Arab Emirates Ministry of Foreign Affairs",
+            "type": "Organization",
+            "confidence": 0.8942400217056274
+          },
+          {
+            "name": "Qatar",
+            "type": "Country",
+            "confidence": 0.7384501099586487
+          },
+          {
+            "name": "United Arab Emirates",
+            "type": "Country",
+            "confidence": 0.7166908383369446
+          },
+          {
+            "name": "Kuwait",
+            "type": "Country",
+            "confidence": 0.6628581881523132
+          },
+          {
+            "name": "Saudi Arabia",
+            "type": "Country",
+            "confidence": 0.641904890537262
+          },
+          {
+            "name": "Bahrain",
+            "type": "Country",
+            "confidence": 0.6345664858818054
+          },
+          {
+            "name": "Hezbollah",
+            "type": "Organization",
+            "confidence": 0.5773158073425293
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9937183856964111
+          },
+          {
+            "name": "Israel",
+            "type": "Country",
+            "confidence": 0.9131879806518555
+          },
+          {
+            "name": "Oman",
+            "type": "Country",
+            "confidence": 0.8904404640197754
+          },
+          {
+            "name": "Lebanon",
+            "type": "Country",
+            "confidence": 0.7452794909477234
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "Country",
+            "confidence": 0.5384880304336548
+          },
+          {
+            "name": "strait of Hormuz",
+            "type": "Location",
+            "confidence": 0.9910208582878113
+          },
+          {
+            "name": "Tehran",
+            "type": "Location",
+            "confidence": 0.9202335476875305
+          },
+          {
+            "name": "ceasefire",
+            "type": "Policy",
+            "confidence": 0.901671290397644
+          },
+          {
+            "name": "restrictions",
+            "type": "Policy",
+            "confidence": 0.7282142639160156
+          },
+          {
+            "name": "missile",
+            "type": "Technology",
+            "confidence": 0.9748115539550781
+          },
+          {
+            "name": "drone",
+            "type": "Technology",
+            "confidence": 0.9481573700904846
+          },
+          {
+            "name": "nuclear",
+            "type": "Technology",
+            "confidence": 0.8070523142814636
+          },
+          {
+            "name": "energy",
+            "type": "Resource",
+            "confidence": 0.9940564632415771
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/immigration/2026/03/26/immigrants-cities-census-population-growth/",
+        "article_len_chars": 3456,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 11453.894832986407,
+        "entity_count": 25,
+        "relation_count": 1,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "William Frey",
+            "type": "Person",
+            "confidence": 0.9975495934486389
+          },
+          {
+            "name": "Julia Gelatt",
+            "type": "Person",
+            "confidence": 0.9964800477027893
+          },
+          {
+            "name": "George M. Hayward",
+            "type": "Person",
+            "confidence": 0.9912806153297424
+          },
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.7529177665710449
+          },
+          {
+            "name": "Migration Policy Institute",
+            "type": "Organization",
+            "confidence": 0.9914692044258118
+          },
+          {
+            "name": "Brookings Institution",
+            "type": "Organization",
+            "confidence": 0.9889295697212219
+          },
+          {
+            "name": "United States Department of State",
+            "type": "Organization",
+            "confidence": 0.9166591167449951
+          },
+          {
+            "name": "United States Census Bureau",
+            "type": "Organization",
+            "confidence": 0.8716159462928772
+          },
+          {
+            "name": "Census Bureau",
+            "type": "Organization",
+            "confidence": 0.5742372870445251
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.7591864466667175
+          },
+          {
+            "name": "New York",
+            "type": "Location",
+            "confidence": 0.9994757771492004
+          },
+          {
+            "name": "Los Angeles",
+            "type": "Location",
+            "confidence": 0.9987232089042664
+          },
+          {
+            "name": "Chicago",
+            "type": "Location",
+            "confidence": 0.9960564374923706
+          },
+          {
+            "name": "Virginia",
+            "type": "Location",
+            "confidence": 0.992946445941925
+          },
+          {
+            "name": "Georgia",
+            "type": "Location",
+            "confidence": 0.988603949546814
+          },
+          {
+            "name": "Florida",
+            "type": "Location",
+            "confidence": 0.9874799847602844
+          },
+          {
+            "name": "South Carolina",
+            "type": "Location",
+            "confidence": 0.9865096211433411
+          },
+          {
+            "name": "North Carolina",
+            "type": "Location",
+            "confidence": 0.9829703569412231
+          },
+          {
+            "name": "Yuma, Arizona",
+            "type": "Location",
+            "confidence": 0.968562126159668
+          },
+          {
+            "name": "El Centro, California",
+            "type": "Location",
+            "confidence": 0.9217943549156189
+          },
+          {
+            "name": "Laredo, Texas",
+            "type": "Location",
+            "confidence": 0.9191857576370239
+          },
+          {
+            "name": "Washington",
+            "type": "Location",
+            "confidence": 0.8369126915931702
+          },
+          {
+            "name": "U.S.",
+            "type": "Location",
+            "confidence": 0.5601598620414734
+          },
+          {
+            "name": "mass deportation campaign",
+            "type": "Policy",
+            "confidence": 0.7607972621917725
+          },
+          {
+            "name": "population growth",
+            "type": "Economic_Indicator",
+            "confidence": 0.5687035918235779
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/iraq-strike-attack-clinic-united-states-pmf-iran/",
+        "article_len_chars": 5415,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 19097.482624987606,
+        "entity_count": 20,
+        "relation_count": 8,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Sabah al-Numan",
+            "type": "Person",
+            "confidence": 0.9987922310829163
+          },
+          {
+            "name": "Tim Hawkins",
+            "type": "Person",
+            "confidence": 0.9950945377349854
+          },
+          {
+            "name": "Ahmed Rasheed",
+            "type": "Person",
+            "confidence": 0.6578909158706665
+          },
+          {
+            "name": "United States Central Command",
+            "type": "Organization",
+            "confidence": 0.9645222425460815
+          },
+          {
+            "name": "Washington Post",
+            "type": "Organization",
+            "confidence": 0.9370169639587402
+          },
+          {
+            "name": "Popular Mobilization Forces",
+            "type": "Organization",
+            "confidence": 0.8541640639305115
+          },
+          {
+            "name": "Pentagon",
+            "type": "Organization",
+            "confidence": 0.6471400856971741
+          },
+          {
+            "name": "Popular Mobilization Forces",
+            "type": "Organization",
+            "confidence": 0.6420357823371887
+          },
+          {
+            "name": "United Nations Security Council",
+            "type": "Organization",
+            "confidence": 0.6320745944976807
+          },
+          {
+            "name": "Iraq",
+            "type": "Country",
+            "confidence": 0.9990350008010864
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9871515035629272
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.8765349984169006
+          },
+          {
+            "name": "Anbar Province",
+            "type": "Location",
+            "confidence": 0.919673502445221
+          },
+          {
+            "name": "Washington, D.C.",
+            "type": "Location",
+            "confidence": 0.8880165815353394
+          },
+          {
+            "name": "Jordan",
+            "type": "Country",
+            "confidence": 0.8682546019554138
+          },
+          {
+            "name": "Baghdad",
+            "type": "Location",
+            "confidence": 0.8666223287582397
+          },
+          {
+            "name": "Najaf",
+            "type": "Location",
+            "confidence": 0.8414315581321716
+          },
+          {
+            "name": "Muwaffaq Salti Air Base",
+            "type": "Location",
+            "confidence": 0.7399380207061768
+          },
+          {
+            "name": "Habbaniyah",
+            "type": "Location",
+            "confidence": 0.5196813344955444
+          },
+          {
+            "name": "A-10C Thunderbolt II",
+            "type": "Military_Asset",
+            "confidence": 0.8389638066291809
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/us-iran-war-trump-talks-pakistan/",
+        "article_len_chars": 4917,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 11733.813041995745,
+        "entity_count": 31,
+        "relation_count": 10,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Shehbaz Sharif",
+            "type": "Person",
+            "confidence": 0.9972127079963684
+          },
+          {
+            "name": "Esmaeil Baqaei",
+            "type": "Person",
+            "confidence": 0.994917631149292
+          },
+          {
+            "name": "Karoline Leavitt",
+            "type": "Person",
+            "confidence": 0.9947301149368286
+          },
+          {
+            "name": "Badr Abdelatty",
+            "type": "Person",
+            "confidence": 0.9929378628730774
+          },
+          {
+            "name": "Donald Trump",
+            "type": "Person",
+            "confidence": 0.9925718903541565
+          },
+          {
+            "name": "Syed Muhammad Ali",
+            "type": "Person",
+            "confidence": 0.9902611374855042
+          },
+          {
+            "name": "Gen. Asim Munir",
+            "type": "Person",
+            "confidence": 0.9893418550491333
+          },
+          {
+            "name": "Jean Arnault",
+            "type": "Person",
+            "confidence": 0.971038818359375
+          },
+          {
+            "name": "Ant\u00f3nio Guterres",
+            "type": "Person",
+            "confidence": 0.96832275390625
+          },
+          {
+            "name": "Mohammed bin Salman",
+            "type": "Person",
+            "confidence": 0.8979408144950867
+          },
+          {
+            "name": "Hamas",
+            "type": "Organization",
+            "confidence": 0.898373544216156
+          },
+          {
+            "name": "Pentagon",
+            "type": "Organization",
+            "confidence": 0.8845115900039673
+          },
+          {
+            "name": "Houthis",
+            "type": "Organization",
+            "confidence": 0.8744293451309204
+          },
+          {
+            "name": "Hezbollah",
+            "type": "Organization",
+            "confidence": 0.8557074666023254
+          },
+          {
+            "name": "Tehran",
+            "type": "Location",
+            "confidence": 0.7762460112571716
+          },
+          {
+            "name": "White House",
+            "type": "Location",
+            "confidence": 0.6679481863975525
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.9781766533851624
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.9648396372795105
+          },
+          {
+            "name": "Egypt",
+            "type": "Country",
+            "confidence": 0.9173775911331177
+          },
+          {
+            "name": "Pakistan",
+            "type": "Country",
+            "confidence": 0.8943510055541992
+          },
+          {
+            "name": "Turkey",
+            "type": "Country",
+            "confidence": 0.8823413252830505
+          },
+          {
+            "name": "Israel",
+            "type": "Country",
+            "confidence": 0.7527795433998108
+          },
+          {
+            "name": "Cairo",
+            "type": "Location",
+            "confidence": 0.9463225603103638
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "Location",
+            "confidence": 0.9364449381828308
+          },
+          {
+            "name": "Oval Office",
+            "type": "Location",
+            "confidence": 0.5257207155227661
+          },
+          {
+            "name": "sanctions relief",
+            "type": "Policy",
+            "confidence": 0.8974425196647644
+          },
+          {
+            "name": "Brent crude",
+            "type": "Economic_Indicator",
+            "confidence": 0.9694886207580566
+          },
+          {
+            "name": "oil prices",
+            "type": "Economic_Indicator",
+            "confidence": 0.8340500593185425
+          },
+          {
+            "name": "paratroopers",
+            "type": "Military_Asset",
+            "confidence": 0.6339136958122253
+          },
+          {
+            "name": "oil",
+            "type": "Resource",
+            "confidence": 0.636971652507782
+          },
+          {
+            "name": "enriched uranium material",
+            "type": "Resource",
+            "confidence": 0.5642821788787842
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.livemint.com/companies/from-beer-to-cosmetics-asia-feels-full-force-of-war-fuelled-energy-crisis-11774566121226.html",
+        "article_len_chars": 6494,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 12283.466624998255,
+        "entity_count": 26,
+        "relation_count": 7,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Choi Gun-soo",
+            "type": "Person",
+            "confidence": 0.9974446296691895
+          },
+          {
+            "name": "Daewoung Kim",
+            "type": "Person",
+            "confidence": 0.8239333629608154
+          },
+          {
+            "name": "Sophie Yu",
+            "type": "Person",
+            "confidence": 0.7994265556335449
+          },
+          {
+            "name": "Hyunjoo Jin",
+            "type": "Person",
+            "confidence": 0.79732346534729
+          },
+          {
+            "name": "L'Or\u00e9al",
+            "type": "Organization",
+            "confidence": 0.9717230200767517
+          },
+          {
+            "name": "Takashimaya",
+            "type": "Organization",
+            "confidence": 0.9638342261314392
+          },
+          {
+            "name": "Amorepacific",
+            "type": "Organization",
+            "confidence": 0.9598719477653503
+          },
+          {
+            "name": "Nongshim",
+            "type": "Organization",
+            "confidence": 0.9537477493286133
+          },
+          {
+            "name": "Samyang Foods",
+            "type": "Organization",
+            "confidence": 0.9299854040145874
+          },
+          {
+            "name": "Yonwoo",
+            "type": "Organization",
+            "confidence": 0.865689754486084
+          },
+          {
+            "name": "Yamayoshi Seika ha",
+            "type": "Organization",
+            "confidence": 0.8293426036834717
+          },
+          {
+            "name": "Reuters",
+            "type": "Organization",
+            "confidence": 0.7285138964653015
+          },
+          {
+            "name": "Iran",
+            "type": "Country",
+            "confidence": 0.8401898145675659
+          },
+          {
+            "name": "Japan",
+            "type": "Country",
+            "confidence": 0.8302760720252991
+          },
+          {
+            "name": "Seoul",
+            "type": "Location",
+            "confidence": 0.9348335266113281
+          },
+          {
+            "name": "Beijing",
+            "type": "Location",
+            "confidence": 0.9113056063652039
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "Location",
+            "confidence": 0.8488947153091431
+          },
+          {
+            "name": "prices",
+            "type": "Economic_Indicator",
+            "confidence": 0.8209935426712036
+          },
+          {
+            "name": "price increases",
+            "type": "Economic_Indicator",
+            "confidence": 0.5672885179519653
+          },
+          {
+            "name": "rubber",
+            "type": "Resource",
+            "confidence": 0.5485681891441345
+          },
+          {
+            "name": "plastic",
+            "type": "Resource",
+            "confidence": 0.5063647627830505
+          },
+          {
+            "name": "oil",
+            "type": "Resource",
+            "confidence": 0.9901782274246216
+          },
+          {
+            "name": "fuel",
+            "type": "Resource",
+            "confidence": 0.9632040858268738
+          },
+          {
+            "name": "gas",
+            "type": "Resource",
+            "confidence": 0.8693968653678894
+          },
+          {
+            "name": "fertiliser",
+            "type": "Resource",
+            "confidence": 0.8524415493011475
+          },
+          {
+            "name": "naphtha",
+            "type": "Resource",
+            "confidence": 0.6392062306404114
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.foreignaffairs.com/iran/false-promise-flexible-realism",
+        "article_len_chars": 622,
+        "method": "gliner2_llm_hybrid",
+        "duration_ms": 9616.0718750034,
+        "entity_count": 9,
+        "relation_count": 2,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 225,
+        "entities": [
+          {
+            "name": "Mira Rapp-Hooper",
+            "type": "Person",
+            "confidence": 0.9999202489852905
+          },
+          {
+            "name": "Rebecca Lissner",
+            "type": "Person",
+            "confidence": 0.9998020529747009
+          },
+          {
+            "name": "Brookings Institution",
+            "type": "Organization",
+            "confidence": 0.9937238097190857
+          },
+          {
+            "name": "Council on Foreign Relations",
+            "type": "Organization",
+            "confidence": 0.98557448387146
+          },
+          {
+            "name": "U.S. National Security Council",
+            "type": "Organization",
+            "confidence": 0.9659023880958557
+          },
+          {
+            "name": "United States",
+            "type": "Country",
+            "confidence": 0.8754307627677917
+          },
+          {
+            "name": "Oceania",
+            "type": "Location",
+            "confidence": 0.9706856608390808
+          },
+          {
+            "name": "East Asia",
+            "type": "Location",
+            "confidence": 0.9610790014266968
+          },
+          {
+            "name": "Indo-Pacific",
+            "type": "Location",
+            "confidence": 0.8473793268203735
+          }
+        ],
+        "error": null
+      }
+    ],
+    "gliner2_only": [
+      {
+        "article_url": "https://www.livemint.com/companies/news/anthropic-wins-preliminary-injunction-against-pentagon-in-landmark-ai-blacklisting-case-11774567078903.html",
+        "article_len_chars": 5028,
+        "method": "gliner2_only",
+        "duration_ms": 7950.116291001905,
+        "entity_count": 13,
+        "relation_count": 9,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Pete Hegseth",
+            "type": "person",
+            "confidence": 0.9972047209739685
+          },
+          {
+            "name": "Rita Lin",
+            "type": "person",
+            "confidence": 0.9742287397384644
+          },
+          {
+            "name": "Anthropic",
+            "type": "organization",
+            "confidence": 0.9998201727867126
+          },
+          {
+            "name": "Microsoft",
+            "type": "organization",
+            "confidence": 0.9996556043624878
+          },
+          {
+            "name": "Amazon",
+            "type": "organization",
+            "confidence": 0.9995984435081482
+          },
+          {
+            "name": "Palantir",
+            "type": "organization",
+            "confidence": 0.9990869760513306
+          },
+          {
+            "name": "Pentagon",
+            "type": "organization",
+            "confidence": 0.9973751306533813
+          },
+          {
+            "name": "Department of Defense",
+            "type": "organization",
+            "confidence": 0.9448118209838867
+          },
+          {
+            "name": "Trump administration",
+            "type": "organization",
+            "confidence": 0.8211597204208374
+          },
+          {
+            "name": "US",
+            "type": "country",
+            "confidence": 0.9379002451896667
+          },
+          {
+            "name": "San Francisco",
+            "type": "location",
+            "confidence": 0.9924303889274597
+          },
+          {
+            "name": "Pentagon Blacklisting",
+            "type": "policy",
+            "confidence": 0.7057218551635742
+          },
+          {
+            "name": "Claude models",
+            "type": "technology",
+            "confidence": 0.953334629535675
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.livemint.com/news/us-news/long-airport-queues-to-end-soon-donald-trump-moves-to-pay-tsa-officers-immediately-amid-dhs-shutdown-11774567994978.html",
+        "article_len_chars": 5183,
+        "method": "gliner2_only",
+        "duration_ms": 7381.051125004888,
+        "entity_count": 9,
+        "relation_count": 8,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "person",
+            "confidence": 0.9968653321266174
+          },
+          {
+            "name": "Markwayne Mullin",
+            "type": "person",
+            "confidence": 0.995128870010376
+          },
+          {
+            "name": "Cryin\u2019 Chuck Schumer",
+            "type": "person",
+            "confidence": 0.8281490802764893
+          },
+          {
+            "name": "Department of Homeland Security (DHS)",
+            "type": "organization",
+            "confidence": 0.9320764541625977
+          },
+          {
+            "name": "Transportation Security Administration (TSA)",
+            "type": "organization",
+            "confidence": 0.9314336776733398
+          },
+          {
+            "name": "DHS",
+            "type": "organization",
+            "confidence": 0.7402945160865784
+          },
+          {
+            "name": "Republicans",
+            "type": "organization",
+            "confidence": 0.5384635925292969
+          },
+          {
+            "name": "US",
+            "type": "country",
+            "confidence": 0.9352138042449951
+          },
+          {
+            "name": "Open Border Policies",
+            "type": "policy",
+            "confidence": 0.9795777201652527
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/cities/chennai/tn-election-2026-water-woes-poor-sewer-network-mar-this-constituency-in-transition/article70788955.ece",
+        "article_len_chars": 493,
+        "method": "gliner2_only",
+        "duration_ms": 6474.479875003453,
+        "entity_count": 7,
+        "relation_count": 3,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "M. Jayanthi",
+            "type": "person",
+            "confidence": 0.9994664788246155
+          },
+          {
+            "name": "Avadi",
+            "type": "location",
+            "confidence": 0.9997276663780212
+          },
+          {
+            "name": "Pattabiram",
+            "type": "location",
+            "confidence": 0.9984789490699768
+          },
+          {
+            "name": "Thiruninravur",
+            "type": "location",
+            "confidence": 0.9961000680923462
+          },
+          {
+            "name": "Thirumullaivoyal",
+            "type": "location",
+            "confidence": 0.9874304533004761
+          },
+          {
+            "name": "Tiruvallur district",
+            "type": "location",
+            "confidence": 0.9179490804672241
+          },
+          {
+            "name": "pipeline",
+            "type": "resource",
+            "confidence": 0.5498953461647034
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.indiatoday.in/world/story/nicolas-maduro-makes-first-court-appearance-as-us-judge-questions-sanctions-row-2887657-2026-03-27?utm_source=rss",
+        "article_len_chars": 4322,
+        "method": "gliner2_only",
+        "duration_ms": 7964.7723749803845,
+        "entity_count": 17,
+        "relation_count": 9,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Cilia Flores",
+            "type": "person",
+            "confidence": 0.9987195730209351
+          },
+          {
+            "name": "Nicolas Maduro",
+            "type": "person",
+            "confidence": 0.9973157048225403
+          },
+          {
+            "name": "Julian Assan",
+            "type": "person",
+            "confidence": 0.9956744313240051
+          },
+          {
+            "name": "Kyle Wirshba",
+            "type": "person",
+            "confidence": 0.9891844987869263
+          },
+          {
+            "name": "Trump",
+            "type": "person",
+            "confidence": 0.9753124713897705
+          },
+          {
+            "name": "Alvin Hellerstein",
+            "type": "person",
+            "confidence": 0.963825523853302
+          },
+          {
+            "name": "Bill Clinton",
+            "type": "person",
+            "confidence": 0.8676608800888062
+          },
+          {
+            "name": "Pollack",
+            "type": "person",
+            "confidence": 0.7899686694145203
+          },
+          {
+            "name": "WikiLeaks",
+            "type": "organization",
+            "confidence": 0.993817150592804
+          },
+          {
+            "name": "Venezuela",
+            "type": "country",
+            "confidence": 0.9913485646247864
+          },
+          {
+            "name": "US",
+            "type": "country",
+            "confidence": 0.9905275106430054
+          },
+          {
+            "name": "New York",
+            "type": "location",
+            "confidence": 0.9977028965950012
+          },
+          {
+            "name": "Caracas",
+            "type": "location",
+            "confidence": 0.9907859563827515
+          },
+          {
+            "name": "Brooklyn",
+            "type": "location",
+            "confidence": 0.9493752717971802
+          },
+          {
+            "name": "Manhattan federal court",
+            "type": "location",
+            "confidence": 0.6800246834754944
+          },
+          {
+            "name": "US sanctions",
+            "type": "policy",
+            "confidence": 0.9433146119117737
+          },
+          {
+            "name": "sanctions",
+            "type": "policy",
+            "confidence": 0.9034004211425781
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.ndtv.com/world-news/iran-war-us-deploys-uncrewed-drone-boats-in-conflict-with-iran-11272030#publisher=newsstand",
+        "article_len_chars": 2735,
+        "method": "gliner2_only",
+        "duration_ms": 7516.209791996516,
+        "entity_count": 22,
+        "relation_count": 7,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Tim Hawkins",
+            "type": "person",
+            "confidence": 0.9996318817138672
+          },
+          {
+            "name": "Reuters",
+            "type": "organization",
+            "confidence": 0.9975737929344177
+          },
+          {
+            "name": "Pentagon",
+            "type": "organization",
+            "confidence": 0.9756834506988525
+          },
+          {
+            "name": "BlackSea",
+            "type": "organization",
+            "confidence": 0.9671881794929504
+          },
+          {
+            "name": "US Navy",
+            "type": "organization",
+            "confidence": 0.7994402647018433
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.9971306920051575
+          },
+          {
+            "name": "United States",
+            "type": "country",
+            "confidence": 0.9383976459503174
+          },
+          {
+            "name": "Ukraine",
+            "type": "country",
+            "confidence": 0.9277610778808594
+          },
+          {
+            "name": "Russia",
+            "type": "country",
+            "confidence": 0.9244375824928284
+          },
+          {
+            "name": "Israel",
+            "type": "country",
+            "confidence": 0.9207355380058289
+          },
+          {
+            "name": "China",
+            "type": "country",
+            "confidence": 0.7709599137306213
+          },
+          {
+            "name": "US",
+            "type": "country",
+            "confidence": 0.5196870565414429
+          },
+          {
+            "name": "Pacific",
+            "type": "location",
+            "confidence": 0.9282472133636475
+          },
+          {
+            "name": "Middle East",
+            "type": "location",
+            "confidence": 0.9151642918586731
+          },
+          {
+            "name": "Gulf",
+            "type": "location",
+            "confidence": 0.9030447006225586
+          },
+          {
+            "name": "Washington",
+            "type": "location",
+            "confidence": 0.8119871020317078
+          },
+          {
+            "name": "Black Sea",
+            "type": "location",
+            "confidence": 0.8005023002624512
+          },
+          {
+            "name": "drone speedboats",
+            "type": "technology",
+            "confidence": 0.8749248385429382
+          },
+          {
+            "name": "unmanned systems",
+            "type": "technology",
+            "confidence": 0.7237488031387329
+          },
+          {
+            "name": "submarines",
+            "type": "military_asset",
+            "confidence": 0.8726030588150024
+          },
+          {
+            "name": "manned ships",
+            "type": "military_asset",
+            "confidence": 0.7546719312667847
+          },
+          {
+            "name": "oil",
+            "type": "resource",
+            "confidence": 0.9898204803466797
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.ndtv.com/world-news/donald-trump-on-taking-control-of-irans-oil-amid-middle-east-tensions-11271965#publisher=newsstand",
+        "article_len_chars": 1993,
+        "method": "gliner2_only",
+        "duration_ms": 6768.240916979266,
+        "entity_count": 14,
+        "relation_count": 10,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "person",
+            "confidence": 0.9995613694190979
+          },
+          {
+            "name": "Delcy Rodriguez",
+            "type": "person",
+            "confidence": 0.9993215799331665
+          },
+          {
+            "name": "Nicolas Maduro",
+            "type": "person",
+            "confidence": 0.9982713460922241
+          },
+          {
+            "name": "NDTV",
+            "type": "organization",
+            "confidence": 0.9271180629730225
+          },
+          {
+            "name": "US",
+            "type": "country",
+            "confidence": 0.9908620119094849
+          },
+          {
+            "name": "Venezuela",
+            "type": "country",
+            "confidence": 0.9905767440795898
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.9898945689201355
+          },
+          {
+            "name": "Saudi Arabia",
+            "type": "country",
+            "confidence": 0.9242496490478516
+          },
+          {
+            "name": "Russia",
+            "type": "country",
+            "confidence": 0.9076604843139648
+          },
+          {
+            "name": "United States",
+            "type": "country",
+            "confidence": 0.5655665993690491
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "location",
+            "confidence": 0.986402690410614
+          },
+          {
+            "name": "White House",
+            "type": "location",
+            "confidence": 0.9351950287818909
+          },
+          {
+            "name": "Middle East",
+            "type": "location",
+            "confidence": 0.6708889007568359
+          },
+          {
+            "name": "oil",
+            "type": "resource",
+            "confidence": 0.9998959302902222
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/international/ballots-without-a-country-a-quiet-case-for-pluralism-in-myanmar/article70788535.ece",
+        "article_len_chars": 12350,
+        "method": "gliner2_only",
+        "duration_ms": 6471.4393749891315,
+        "entity_count": 8,
+        "relation_count": 6,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Aung San Suu Kyi",
+            "type": "person",
+            "confidence": 0.9998952150344849
+          },
+          {
+            "name": "Thein Sein",
+            "type": "person",
+            "confidence": 0.9990111589431763
+          },
+          {
+            "name": "Win Myint",
+            "type": "person",
+            "confidence": 0.9986107349395752
+          },
+          {
+            "name": "Min Aung Hlaing",
+            "type": "person",
+            "confidence": 0.995438277721405
+          },
+          {
+            "name": "Barrack Obama",
+            "type": "person",
+            "confidence": 0.9916731715202332
+          },
+          {
+            "name": "National League for Democracy (NLD)",
+            "type": "organization",
+            "confidence": 0.9732037782669067
+          },
+          {
+            "name": "Myanmar",
+            "type": "country",
+            "confidence": 0.9998823404312134
+          },
+          {
+            "name": "state of emergency",
+            "type": "policy",
+            "confidence": 0.7854123711585999
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.indiatoday.in/world/story/toys-compared-to-ours-president-trump-ridicules-uk-carriers-amid-iran-war-tensions-2887656-2026-03-27?utm_source=rss",
+        "article_len_chars": 1971,
+        "method": "gliner2_only",
+        "duration_ms": 7356.492333026836,
+        "entity_count": 18,
+        "relation_count": 6,
+        "hallucinated_entity_count": 2,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "person",
+            "confidence": 0.9995879530906677
+          },
+          {
+            "name": "John Healey",
+            "type": "person",
+            "confidence": 0.9979572296142578
+          },
+          {
+            "name": "Nato",
+            "type": "organization",
+            "confidence": 0.9924526810646057
+          },
+          {
+            "name": "Royal Navy",
+            "type": "organization",
+            "confidence": 0.9054955840110779
+          },
+          {
+            "name": "Tehran",
+            "type": "organization",
+            "confidence": 0.7243105173110962
+          },
+          {
+            "name": "Germany",
+            "type": "organization",
+            "confidence": 0.543962299823761
+          },
+          {
+            "name": "US",
+            "type": "country",
+            "confidence": 0.969978392124176
+          },
+          {
+            "name": "UK",
+            "type": "country",
+            "confidence": 0.9594398140907288
+          },
+          {
+            "name": "Britain",
+            "type": "country",
+            "confidence": 0.9345004558563232
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.9017698764801025
+          },
+          {
+            "name": "Cyprus",
+            "type": "country",
+            "confidence": 0.7803558111190796
+          },
+          {
+            "name": "Diego Garcia base",
+            "type": "location",
+            "confidence": 0.9441176652908325
+          },
+          {
+            "name": "White House",
+            "type": "location",
+            "confidence": 0.5803525447845459
+          },
+          {
+            "name": "aircraft carriers",
+            "type": "military_asset",
+            "confidence": 0.9939334988594055
+          },
+          {
+            "name": "HMS Dragon",
+            "type": "military_asset",
+            "confidence": 0.8174718022346497
+          },
+          {
+            "name": "B-2 bombers",
+            "type": "military_asset",
+            "confidence": 0.7484162449836731
+          },
+          {
+            "name": "warships",
+            "type": "military_asset",
+            "confidence": 0.7312297821044922
+          },
+          {
+            "name": "frigate",
+            "type": "military_asset",
+            "confidence": 0.5442059636116028
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/iran-missiles-israel-air-defense/",
+        "article_len_chars": 10089,
+        "method": "gliner2_only",
+        "duration_ms": 7654.393250006251,
+        "entity_count": 14,
+        "relation_count": 5,
+        "hallucinated_entity_count": 1,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "David Azran",
+            "type": "person",
+            "confidence": 0.9997386336326599
+          },
+          {
+            "name": "Mohammad Bagher Ghalibaf",
+            "type": "person",
+            "confidence": 0.9967162609100342
+          },
+          {
+            "name": "X",
+            "type": "organization",
+            "confidence": 0.7343212962150574
+          },
+          {
+            "name": "Iran\u2019s parliament",
+            "type": "organization",
+            "confidence": 0.6223471760749817
+          },
+          {
+            "name": "Israel",
+            "type": "country",
+            "confidence": 0.9994889497756958
+          },
+          {
+            "name": "Dimona",
+            "type": "location",
+            "confidence": 0.9983635544776917
+          },
+          {
+            "name": "Arad",
+            "type": "location",
+            "confidence": 0.9957883954048157
+          },
+          {
+            "name": "interceptor missiles",
+            "type": "military_asset",
+            "confidence": 0.9196638464927673
+          },
+          {
+            "name": "munitions",
+            "type": "military_asset",
+            "confidence": 0.7983177304267883
+          },
+          {
+            "name": "missile batteries",
+            "type": "military_asset",
+            "confidence": 0.6277877688407898
+          },
+          {
+            "name": "assault rifle",
+            "type": "military_asset",
+            "confidence": 0.5622200965881348
+          },
+          {
+            "name": "interceptors",
+            "type": "military_asset",
+            "confidence": 0.5423569679260254
+          },
+          {
+            "name": "missiles",
+            "type": "military_asset",
+            "confidence": 0.5170190930366516
+          },
+          {
+            "name": "nuclear facility",
+            "type": "resource",
+            "confidence": 0.8270431756973267
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.thehindu.com/news/national/haryana/haryanas-cotton-farms-holding-on-by-a-thread/article70784114.ece",
+        "article_len_chars": 11212,
+        "method": "gliner2_only",
+        "duration_ms": 7265.199332992779,
+        "entity_count": 14,
+        "relation_count": 3,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Satyavan",
+            "type": "person",
+            "confidence": 0.9998432397842407
+          },
+          {
+            "name": "Dayanand Dhaka",
+            "type": "person",
+            "confidence": 0.9993315935134888
+          },
+          {
+            "name": "Ministry of Agriculture and Farmers Welfare",
+            "type": "organization",
+            "confidence": 0.9332061409950256
+          },
+          {
+            "name": "Department of Agricultural Economics",
+            "type": "organization",
+            "confidence": 0.9324287176132202
+          },
+          {
+            "name": "Chaudhary Charan Singh Haryana Agricultural University",
+            "type": "organization",
+            "confidence": 0.5758868455886841
+          },
+          {
+            "name": "CCSHAU",
+            "type": "organization",
+            "confidence": 0.5484016537666321
+          },
+          {
+            "name": "Haryana",
+            "type": "location",
+            "confidence": 0.998033344745636
+          },
+          {
+            "name": "Hisar",
+            "type": "location",
+            "confidence": 0.9657498002052307
+          },
+          {
+            "name": "Delhi",
+            "type": "location",
+            "confidence": 0.9572439193725586
+          },
+          {
+            "name": "Kirtan village",
+            "type": "location",
+            "confidence": 0.7667820453643799
+          },
+          {
+            "name": "MSP",
+            "type": "policy",
+            "confidence": 0.7367178201675415
+          },
+          {
+            "name": "Minimum Support Price",
+            "type": "policy",
+            "confidence": 0.6447604298591614
+          },
+          {
+            "name": "acr",
+            "type": "economic_indicator",
+            "confidence": 0.5458666682243347
+          },
+          {
+            "name": "cotton",
+            "type": "resource",
+            "confidence": 0.99626225233078
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/ukraine-russia-drone-attack/",
+        "article_len_chars": 3901,
+        "method": "gliner2_only",
+        "duration_ms": 7253.740249987459,
+        "entity_count": 15,
+        "relation_count": 7,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Volodymyr Zelensky",
+            "type": "person",
+            "confidence": 0.9884105920791626
+          },
+          {
+            "name": "Ukrainian air force",
+            "type": "organization",
+            "confidence": 0.9028137922286987
+          },
+          {
+            "name": "UNESCO",
+            "type": "organization",
+            "confidence": 0.8896639943122864
+          },
+          {
+            "name": "Lviv\u2019s cultural heritage office",
+            "type": "organization",
+            "confidence": 0.6993964910507202
+          },
+          {
+            "name": "Ukraine\u2019s Defense Ministry",
+            "type": "organization",
+            "confidence": 0.5817828178405762
+          },
+          {
+            "name": "Russia",
+            "type": "country",
+            "confidence": 0.946479082107544
+          },
+          {
+            "name": "Ukraine",
+            "type": "country",
+            "confidence": 0.9241615533828735
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.6471532583236694
+          },
+          {
+            "name": "Lviv",
+            "type": "location",
+            "confidence": 0.9969568252563477
+          },
+          {
+            "name": "KYIV",
+            "type": "location",
+            "confidence": 0.8474687337875366
+          },
+          {
+            "name": "Moscow",
+            "type": "location",
+            "confidence": 0.8223068714141846
+          },
+          {
+            "name": "Ukrainian cities",
+            "type": "location",
+            "confidence": 0.5908975005149841
+          },
+          {
+            "name": "drones",
+            "type": "technology",
+            "confidence": 0.8418977856636047
+          },
+          {
+            "name": "cruise missiles",
+            "type": "technology",
+            "confidence": 0.5733710527420044
+          },
+          {
+            "name": "ballistic and cruise missiles",
+            "type": "military_asset",
+            "confidence": 0.7636131644248962
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/26/us-israel-iran-navy-chief-killed-hormuz/",
+        "article_len_chars": 5798,
+        "method": "gliner2_only",
+        "duration_ms": 7789.0076670155395,
+        "entity_count": 18,
+        "relation_count": 3,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Donald Trump",
+            "type": "person",
+            "confidence": 0.9993187189102173
+          },
+          {
+            "name": "Steve Witkoff",
+            "type": "person",
+            "confidence": 0.9969315528869629
+          },
+          {
+            "name": "White House",
+            "type": "organization",
+            "confidence": 0.9405816197395325
+          },
+          {
+            "name": "Tehran",
+            "type": "organization",
+            "confidence": 0.6722558736801147
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.9969815611839294
+          },
+          {
+            "name": "Israel",
+            "type": "country",
+            "confidence": 0.8248091340065002
+          },
+          {
+            "name": "United States",
+            "type": "country",
+            "confidence": 0.7961869239807129
+          },
+          {
+            "name": "U.S.",
+            "type": "country",
+            "confidence": 0.7813188433647156
+          },
+          {
+            "name": "Lebanon",
+            "type": "country",
+            "confidence": 0.7730637192726135
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "location",
+            "confidence": 0.9904312491416931
+          },
+          {
+            "name": "Pakistan",
+            "type": "location",
+            "confidence": 0.5396983027458191
+          },
+          {
+            "name": "ceasefire deal",
+            "type": "policy",
+            "confidence": 0.8285858631134033
+          },
+          {
+            "name": "ceasefire proposal",
+            "type": "policy",
+            "confidence": 0.7735273838043213
+          },
+          {
+            "name": "S&P 500",
+            "type": "economic_indicator",
+            "confidence": 0.9869039058685303
+          },
+          {
+            "name": "oil prices",
+            "type": "economic_indicator",
+            "confidence": 0.9382213354110718
+          },
+          {
+            "name": "Nasdaq",
+            "type": "economic_indicator",
+            "confidence": 0.8081853985786438
+          },
+          {
+            "name": "military infrastructure",
+            "type": "military_asset",
+            "confidence": 0.6666200160980225
+          },
+          {
+            "name": "oil",
+            "type": "resource",
+            "confidence": 0.9875754117965698
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/weather/2026/03/24/middle-east-storm-flooding-tornado-iran-dubai/",
+        "article_len_chars": 5704,
+        "method": "gliner2_only",
+        "duration_ms": 6885.993459000019,
+        "entity_count": 14,
+        "relation_count": 4,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Ben Noll",
+            "type": "person",
+            "confidence": 0.9930994510650635
+          },
+          {
+            "name": "The Washington Post",
+            "type": "organization",
+            "confidence": 0.9694159030914307
+          },
+          {
+            "name": "NOAA",
+            "type": "organization",
+            "confidence": 0.6685736179351807
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.8526978492736816
+          },
+          {
+            "name": "Israel",
+            "type": "country",
+            "confidence": 0.8324310779571533
+          },
+          {
+            "name": "U.S.",
+            "type": "country",
+            "confidence": 0.8159646391868591
+          },
+          {
+            "name": "Dubai",
+            "type": "location",
+            "confidence": 0.9997199177742004
+          },
+          {
+            "name": "Abu Dhabi",
+            "type": "location",
+            "confidence": 0.9995337724685669
+          },
+          {
+            "name": "Arabian Peninsula",
+            "type": "location",
+            "confidence": 0.9951954483985901
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "location",
+            "confidence": 0.994251012802124
+          },
+          {
+            "name": "Middle East",
+            "type": "location",
+            "confidence": 0.9923238754272461
+          },
+          {
+            "name": "northern Oman",
+            "type": "location",
+            "confidence": 0.8473641276359558
+          },
+          {
+            "name": "desert",
+            "type": "location",
+            "confidence": 0.6194367408752441
+          },
+          {
+            "name": "war",
+            "type": "policy",
+            "confidence": 0.6732486486434937
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/national-security/2026/03/24/us-orders-82nd-airborne-iran-paratroopers-kharg/",
+        "article_len_chars": 3124,
+        "method": "gliner2_only",
+        "duration_ms": 7479.253541998332,
+        "entity_count": 15,
+        "relation_count": 6,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Maj. Gen. Brandon Tegtmeier",
+            "type": "person",
+            "confidence": 0.9952638149261475
+          },
+          {
+            "name": "Donald Trump",
+            "type": "person",
+            "confidence": 0.9742112755775452
+          },
+          {
+            "name": "Pentagon",
+            "type": "organization",
+            "confidence": 0.9807846546173096
+          },
+          {
+            "name": "Tripoli Amphibious Ready Group",
+            "type": "organization",
+            "confidence": 0.7485896944999695
+          },
+          {
+            "name": "82nd Airborne Division",
+            "type": "organization",
+            "confidence": 0.730758547782898
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.9894333481788635
+          },
+          {
+            "name": "U.S.",
+            "type": "country",
+            "confidence": 0.9129529595375061
+          },
+          {
+            "name": "Middle East",
+            "type": "location",
+            "confidence": 0.9962934851646423
+          },
+          {
+            "name": "Fort Polk",
+            "type": "location",
+            "confidence": 0.9690908193588257
+          },
+          {
+            "name": "Fort Bragg",
+            "type": "location",
+            "confidence": 0.9589788317680359
+          },
+          {
+            "name": "Okinaw",
+            "type": "location",
+            "confidence": 0.9389606714248657
+          },
+          {
+            "name": "North Carolina",
+            "type": "location",
+            "confidence": 0.9140993356704712
+          },
+          {
+            "name": "Louisiana",
+            "type": "location",
+            "confidence": 0.8632063269615173
+          },
+          {
+            "name": "warships",
+            "type": "military_asset",
+            "confidence": 0.9645501971244812
+          },
+          {
+            "name": "airfields",
+            "type": "military_asset",
+            "confidence": 0.678132176399231
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/26/iran-gulf-us-peace-deal-trump/",
+        "article_len_chars": 6340,
+        "method": "gliner2_only",
+        "duration_ms": 7068.683999998029,
+        "entity_count": 14,
+        "relation_count": 5,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Trump",
+            "type": "person",
+            "confidence": 0.9300177097320557
+          },
+          {
+            "name": "European official",
+            "type": "person",
+            "confidence": 0.7254055142402649
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.8638272881507874
+          },
+          {
+            "name": "Saudi Arabia",
+            "type": "country",
+            "confidence": 0.7577521204948425
+          },
+          {
+            "name": "United Arab Emirates",
+            "type": "country",
+            "confidence": 0.7485005259513855
+          },
+          {
+            "name": "U.S.",
+            "type": "country",
+            "confidence": 0.603187620639801
+          },
+          {
+            "name": "Persian Gulf",
+            "type": "country",
+            "confidence": 0.5592904686927795
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "location",
+            "confidence": 0.9945189356803894
+          },
+          {
+            "name": "Tehran",
+            "type": "location",
+            "confidence": 0.7754441499710083
+          },
+          {
+            "name": "restrictions",
+            "type": "policy",
+            "confidence": 0.7952074408531189
+          },
+          {
+            "name": "missile",
+            "type": "technology",
+            "confidence": 0.8976200819015503
+          },
+          {
+            "name": "drone",
+            "type": "technology",
+            "confidence": 0.8971138000488281
+          },
+          {
+            "name": "nuclear",
+            "type": "technology",
+            "confidence": 0.8462258577346802
+          },
+          {
+            "name": "energy",
+            "type": "resource",
+            "confidence": 0.987247109413147
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/immigration/2026/03/26/immigrants-cities-census-population-growth/",
+        "article_len_chars": 3456,
+        "method": "gliner2_only",
+        "duration_ms": 6985.3977499878965,
+        "entity_count": 13,
+        "relation_count": 3,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "William Frey",
+            "type": "person",
+            "confidence": 0.9992719292640686
+          },
+          {
+            "name": "Brookings Institution",
+            "type": "organization",
+            "confidence": 0.9879222512245178
+          },
+          {
+            "name": "State Department",
+            "type": "organization",
+            "confidence": 0.9745121002197266
+          },
+          {
+            "name": "U.S. Census Bureau",
+            "type": "organization",
+            "confidence": 0.9292204976081848
+          },
+          {
+            "name": "Brookings",
+            "type": "organization",
+            "confidence": 0.6789669394493103
+          },
+          {
+            "name": "United States",
+            "type": "country",
+            "confidence": 0.8033422231674194
+          },
+          {
+            "name": "New York",
+            "type": "location",
+            "confidence": 0.9996219873428345
+          },
+          {
+            "name": "Los Angeles",
+            "type": "location",
+            "confidence": 0.9995489716529846
+          },
+          {
+            "name": "Chicago",
+            "type": "location",
+            "confidence": 0.9978201389312744
+          },
+          {
+            "name": "Washington",
+            "type": "location",
+            "confidence": 0.8085144758224487
+          },
+          {
+            "name": "mass deportation campaign",
+            "type": "policy",
+            "confidence": 0.7553920745849609
+          },
+          {
+            "name": "population growth",
+            "type": "economic_indicator",
+            "confidence": 0.8038246035575867
+          },
+          {
+            "name": "net immigration",
+            "type": "economic_indicator",
+            "confidence": 0.6471153497695923
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/iraq-strike-attack-clinic-united-states-pmf-iran/",
+        "article_len_chars": 5415,
+        "method": "gliner2_only",
+        "duration_ms": 7973.727665987099,
+        "entity_count": 15,
+        "relation_count": 11,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Sabah al-Numan",
+            "type": "person",
+            "confidence": 0.9996640682220459
+          },
+          {
+            "name": "Tim Hawkins",
+            "type": "person",
+            "confidence": 0.9986081719398499
+          },
+          {
+            "name": "Washington Post",
+            "type": "organization",
+            "confidence": 0.9694339632987976
+          },
+          {
+            "name": "Central Command",
+            "type": "organization",
+            "confidence": 0.8926562070846558
+          },
+          {
+            "name": "Pentagon",
+            "type": "organization",
+            "confidence": 0.8093167543411255
+          },
+          {
+            "name": "Iraq",
+            "type": "country",
+            "confidence": 0.9966224431991577
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.9430829882621765
+          },
+          {
+            "name": "United States",
+            "type": "country",
+            "confidence": 0.9010913372039795
+          },
+          {
+            "name": "Anbar province",
+            "type": "location",
+            "confidence": 0.9434013962745667
+          },
+          {
+            "name": "Washington",
+            "type": "location",
+            "confidence": 0.9357110857963562
+          },
+          {
+            "name": "Baghdad",
+            "type": "location",
+            "confidence": 0.9216780066490173
+          },
+          {
+            "name": "NAJAF",
+            "type": "location",
+            "confidence": 0.8891347646713257
+          },
+          {
+            "name": "southern Iran",
+            "type": "location",
+            "confidence": 0.7706448435783386
+          },
+          {
+            "name": "air base",
+            "type": "military_asset",
+            "confidence": 0.689895749092102
+          },
+          {
+            "name": "military base",
+            "type": "military_asset",
+            "confidence": 0.5135292410850525
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.washingtonpost.com/world/2026/03/25/us-iran-war-trump-talks-pakistan/",
+        "article_len_chars": 4917,
+        "method": "gliner2_only",
+        "duration_ms": 7763.311000016984,
+        "entity_count": 20,
+        "relation_count": 10,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Karoline Leavitt",
+            "type": "person",
+            "confidence": 0.9989412426948547
+          },
+          {
+            "name": "Badr Abdelatty",
+            "type": "person",
+            "confidence": 0.997818112373352
+          },
+          {
+            "name": "Esmaeil Baqaei",
+            "type": "person",
+            "confidence": 0.9969837069511414
+          },
+          {
+            "name": "Pentagon",
+            "type": "organization",
+            "confidence": 0.9101701974868774
+          },
+          {
+            "name": "Hamas",
+            "type": "organization",
+            "confidence": 0.9064300656318665
+          },
+          {
+            "name": "Houthis",
+            "type": "organization",
+            "confidence": 0.8889557719230652
+          },
+          {
+            "name": "Hezbollah",
+            "type": "organization",
+            "confidence": 0.8261759281158447
+          },
+          {
+            "name": "White House",
+            "type": "organization",
+            "confidence": 0.7281906008720398
+          },
+          {
+            "name": "Post AIDive",
+            "type": "organization",
+            "confidence": 0.5774151682853699
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.9956775307655334
+          },
+          {
+            "name": "United States",
+            "type": "country",
+            "confidence": 0.9835510849952698
+          },
+          {
+            "name": "Egypt",
+            "type": "country",
+            "confidence": 0.9408640265464783
+          },
+          {
+            "name": "Turkey",
+            "type": "country",
+            "confidence": 0.9095696806907654
+          },
+          {
+            "name": "Pakistan",
+            "type": "country",
+            "confidence": 0.8682129979133606
+          },
+          {
+            "name": "Cairo",
+            "type": "location",
+            "confidence": 0.9710851311683655
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "location",
+            "confidence": 0.9599617123603821
+          },
+          {
+            "name": "Tehran",
+            "type": "location",
+            "confidence": 0.7527833580970764
+          },
+          {
+            "name": "sanctions relief",
+            "type": "policy",
+            "confidence": 0.9333670139312744
+          },
+          {
+            "name": "paratroopers",
+            "type": "military_asset",
+            "confidence": 0.770527184009552
+          },
+          {
+            "name": "enriched uranium material",
+            "type": "resource",
+            "confidence": 0.7014530897140503
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.livemint.com/companies/from-beer-to-cosmetics-asia-feels-full-force-of-war-fuelled-energy-crisis-11774566121226.html",
+        "article_len_chars": 6494,
+        "method": "gliner2_only",
+        "duration_ms": 7127.30679201195,
+        "entity_count": 15,
+        "relation_count": 5,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "Choi Gun-soo",
+            "type": "person",
+            "confidence": 0.9990730285644531
+          },
+          {
+            "name": "Daewoung Kim",
+            "type": "person",
+            "confidence": 0.9207818508148193
+          },
+          {
+            "name": "Hyunjoo Jin",
+            "type": "person",
+            "confidence": 0.9012513756752014
+          },
+          {
+            "name": "Sophie Yu",
+            "type": "person",
+            "confidence": 0.8918063640594482
+          },
+          {
+            "name": "factory",
+            "type": "organization",
+            "confidence": 0.569159984588623
+          },
+          {
+            "name": "Iran",
+            "type": "country",
+            "confidence": 0.9392192959785461
+          },
+          {
+            "name": "SEOUL",
+            "type": "location",
+            "confidence": 0.9610525965690613
+          },
+          {
+            "name": "BEIJING",
+            "type": "location",
+            "confidence": 0.9561807513237
+          },
+          {
+            "name": "Strait of Hormuz",
+            "type": "location",
+            "confidence": 0.8319509625434875
+          },
+          {
+            "name": "Gulf",
+            "type": "location",
+            "confidence": 0.6099247336387634
+          },
+          {
+            "name": "prices",
+            "type": "economic_indicator",
+            "confidence": 0.9362804889678955
+          },
+          {
+            "name": "oil",
+            "type": "resource",
+            "confidence": 0.9974820017814636
+          },
+          {
+            "name": "gas",
+            "type": "resource",
+            "confidence": 0.9002795815467834
+          },
+          {
+            "name": "fertiliser",
+            "type": "resource",
+            "confidence": 0.8971245288848877
+          },
+          {
+            "name": "fuel",
+            "type": "resource",
+            "confidence": 0.8877628445625305
+          }
+        ],
+        "error": null
+      },
+      {
+        "article_url": "https://www.foreignaffairs.com/iran/false-promise-flexible-realism",
+        "article_len_chars": 622,
+        "method": "gliner2_only",
+        "duration_ms": 6566.731291997712,
+        "entity_count": 9,
+        "relation_count": 2,
+        "hallucinated_entity_count": 0,
+        "estimated_tokens": 0,
+        "entities": [
+          {
+            "name": "MIRA RAPP-HOOPER",
+            "type": "person",
+            "confidence": 0.9999202489852905
+          },
+          {
+            "name": "REBECCA LISSNER",
+            "type": "person",
+            "confidence": 0.9998020529747009
+          },
+          {
+            "name": "Brookings Institution",
+            "type": "organization",
+            "confidence": 0.9937238097190857
+          },
+          {
+            "name": "Council on Foreign Relations",
+            "type": "organization",
+            "confidence": 0.98557448387146
+          },
+          {
+            "name": "U.S. National Security Council",
+            "type": "organization",
+            "confidence": 0.9659023880958557
+          },
+          {
+            "name": "America",
+            "type": "country",
+            "confidence": 0.8754307627677917
+          },
+          {
+            "name": "Oceania",
+            "type": "location",
+            "confidence": 0.9706856608390808
+          },
+          {
+            "name": "East Asia",
+            "type": "location",
+            "confidence": 0.9610790014266968
+          },
+          {
+            "name": "Indo-Pacific",
+            "type": "location",
+            "confidence": 0.8473793268203735
+          }
+        ],
+        "error": null
+      }
+    ]
+  }
+}

@@ -25,6 +25,25 @@ from scrapers.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
+_UTF8_BOM = b'\xef\xbb\xbf'
+
+
+def _parse_rss(resp: requests.Response):
+    """
+    Parse an RSS feed response correctly.
+
+    requests defaults to latin-1 for 'text/xml' with no charset header, which
+    corrupts the UTF-8 BOM (\\xef\\xbb\\xbf → 'ï»¿') and breaks the XML parser.
+    We decode the raw bytes ourselves: strip BOM if present, then UTF-8 decode.
+    """
+    content = resp.content
+    if content.startswith(_UTF8_BOM):
+        text = content[len(_UTF8_BOM):].decode('utf-8')
+    else:
+        encoding = resp.apparent_encoding or 'utf-8'
+        text = content.decode(encoding, errors='replace')
+    return RSSParser.parse(text)
+
 _IST = timezone(timedelta(hours=5, minutes=30))
 
 
@@ -135,7 +154,7 @@ class PIBScraper(BaseGovScraper):
             if not resp:
                 continue
             try:
-                rss = RSSParser.parse(resp.text)
+                rss = _parse_rss(resp)
                 for item in rss.channel.items:
                     url = item.links[0].content if item.links else None
                     if not url:
@@ -176,7 +195,7 @@ class MEAScraper(BaseGovScraper):
             if not resp:
                 continue
             try:
-                rss = RSSParser.parse(resp.text)
+                rss = _parse_rss(resp)
                 for item in rss.channel.items:
                     url = item.links[0].content if item.links else None
                     if not url:
@@ -217,7 +236,7 @@ class ParliamentScraper(BaseGovScraper):
             if not resp:
                 continue
             try:
-                rss = RSSParser.parse(resp.text)
+                rss = _parse_rss(resp)
                 for item in rss.channel.items:
                     url = item.links[0].content if item.links else None
                     if not url:
@@ -258,7 +277,7 @@ class DRDOScraper(BaseGovScraper):
             if not resp:
                 continue
             try:
-                rss = RSSParser.parse(resp.text)
+                rss = _parse_rss(resp)
                 for item in rss.channel.items:
                     url = item.links[0].content if item.links else None
                     if not url:

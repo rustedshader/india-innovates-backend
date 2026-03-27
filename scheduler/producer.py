@@ -23,6 +23,7 @@ from config import (
 from models.database import SessionLocal
 from models.scraped_article import ScrapedArticle
 from scrapers.news_rss import create_default_scraper
+from scrapers.india_gov import IndiaGovProducer
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,7 @@ def main():
     )
 
     scraper = create_default_scraper()
+    gov_producer = IndiaGovProducer(redis_client=r)
 
     # Mark already-seen URLs in scraper from Redis
     seen_urls = r.smembers(REDIS_SEEN_KEY)
@@ -118,8 +120,25 @@ def main():
 
                 producer.flush()
                 logger.info(f"Published {published} articles to Kafka topic '{KAFKA_TOPIC}'")
-            else:
-                logger.info("No new articles found")
+
+            # Fetch and publish India government primary sources (PIB, MEA, Parliament, DRDO)
+            try:
+                gov_docs = gov_producer.fetch_all()
+                logger.info(f"Fetched {len(gov_docs)} documents from India government sources")
+                gov_published = 0
+                for doc in gov_docs:
+                    if r.sismember(REDIS_SEEN_KEY, doc.url):
+                        continue
+                    try:
+                        producer.send(KAFKA_TOPIC, value=doc.to_article_dict())
+                        r.sadd(REDIS_SEEN_KEY, doc.url)
+                        gov_published += 1
+                    except Exception as e:
+                        logger.error(f"Failed to publish gov doc {doc.url}: {e}")
+                producer.flush()
+                logger.info(f"Published {gov_published} India government documents to Kafka topic '{KAFKA_TOPIC}'")
+            except Exception as e:
+                logger.error(f"India government scrape failed: {e}", exc_info=True)
 
         except Exception as e:
             logger.error(f"Scrape cycle failed: {e}", exc_info=True)

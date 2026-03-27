@@ -7,10 +7,12 @@ and extracts full content using newspaper3k.
 
 import logging
 import hashlib
+import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from email.utils import parsedate_to_datetime
 
 import requests
 import newspaper
@@ -18,6 +20,48 @@ from rss_parser import RSSParser
 
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_pub_date(date_str: str) -> Optional[datetime]:
+    """Parse an RSS pub_date string into a timezone-aware datetime. Returns None on failure."""
+    if not date_str:
+        return None
+    # Try RFC 2822 (standard RSS format: "Thu, 27 Mar 2026 10:00:00 +0000")
+    try:
+        dt = parsedate_to_datetime(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        pass
+    # Fallback: ISO 8601 / other common formats via dateutil
+    try:
+        from dateutil import parser as dateutil_parser
+        dt = dateutil_parser.parse(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        pass
+    return None
+
+
+def _extract_next_page_url(response_text: str) -> Optional[str]:
+    """
+    Extract the RFC 5005 'next' page URL from raw RSS/Atom XML.
+    Handles both <atom:link rel="next" href="..."/> and <link rel="next" href="..."/>.
+    """
+    patterns = [
+        r'<atom:link[^>]+rel=["\']next["\'][^>]+href=["\']([^"\']+)["\']',
+        r'<atom:link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']next["\']',
+        r'<link[^>]+rel=["\']next["\'][^>]+href=["\']([^"\']+)["\']',
+        r'<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']next["\']',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, response_text, re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return None
 
 
 @dataclass
@@ -175,83 +219,152 @@ class NewsRSSScraper:
 
     # ── Fetching (RSS metadata only) ──────────────────────────────────────
 
-    def fetch_feed(self, source_name: str, rss_url: str, *, include_seen: bool = False, max_per_feed: int = 0) -> list[Article]:
+    def fetch_feed(
+        self,
+        source_name: str,
+        rss_url: str,
+        *,
+        include_seen: bool = False,
+        max_per_feed: int = 0,
+        cutoff_date: Optional[datetime] = None,
+    ) -> list[Article]:
         """
-        Fetch articles from a single RSS feed.
-        Returns Article objects with metadata only (no full text yet).
+        Fetch articles from a single RSS feed, following pagination links (RFC 5005)
+        until all pages within the cutoff window have been retrieved.
 
         Args:
             source_name: Name of the source (e.g. "BBC")
             rss_url: The RSS feed URL
             include_seen: If True, include articles that were already fetched before
             max_per_feed: Max articles to take from this feed (0 = unlimited)
+            cutoff_date: Only include articles published on or after this date.
+                         Pagination stops once a page contains only older articles.
         """
-        try:
-            response = requests.get(rss_url, headers=self._headers, timeout=self._request_timeout)
-            response.raise_for_status()
-        except requests.RequestException as e:
-            logger.error(f"Failed to fetch RSS feed from {source_name} ({rss_url}): {e}")
-            return []
+        all_articles: list[Article] = []
+        current_url: Optional[str] = rss_url
+        pages_fetched = 0
+        max_pages = 50  # safety cap to prevent infinite loops
 
-        try:
-            rss = RSSParser.parse(response.text)
-        except Exception as e:
-            logger.error(f"Failed to parse RSS feed from {source_name}: {e}")
-            return []
+        while current_url and pages_fetched < max_pages:
+            pages_fetched += 1
 
-        articles = []
-        for item in rss.channel.items:
-            url = item.links[0].content if item.links else None
-            if not url:
-                continue
-
-            # Skip already-seen URLs unless explicitly requested
-            if not include_seen and url in self._seen_urls:
-                continue
-
-            title = item.title.content if item.title else ""
-
-            # Cross-source title dedup: skip if a very similar headline was already fetched
-            if self._dedup_titles and title:
-                title_key = self._normalize_title(title)
-                if title_key and title_key in self._seen_title_keys:
-                    logger.debug(f"Title dedup: skipping '{title[:60]}' from {source_name}")
-                    continue
-                if title_key:
-                    self._seen_title_keys.add(title_key)
-
-            description = item.description.content if item.description else ""
-            pub_date = item.pub_date.content if hasattr(item, "pub_date") and item.pub_date else ""
-            guid = item.guid.content if hasattr(item, "guid") and item.guid else ""
-
-            article = Article(
-                url=url,
-                title=title,
-                source=source_name,
-                description=description,
-                pub_date=pub_date,
-                guid=guid,
-            )
-            articles.append(article)
-            self._seen_urls.add(url)
-
-            if max_per_feed and len(articles) >= max_per_feed:
+            try:
+                response = requests.get(current_url, headers=self._headers, timeout=self._request_timeout)
+                response.raise_for_status()
+            except requests.RequestException as e:
+                logger.error(f"Failed to fetch RSS feed from {source_name} ({current_url}): {e}")
                 break
 
-        logger.info(f"Fetched {len(articles)} articles from {source_name}")
-        return articles
+            try:
+                rss = RSSParser.parse(response.text)
+            except Exception as e:
+                logger.error(f"Failed to parse RSS feed from {source_name}: {e}")
+                break
 
-    def fetch_all(self, *, include_seen: bool = False, max_per_feed: int = 0) -> list[Article]:
+            page_had_fresh_items = False
+
+            for item in rss.channel.items:
+                url = item.links[0].content if item.links else None
+                if not url:
+                    continue
+
+                pub_date_str = item.pub_date.content if hasattr(item, "pub_date") and item.pub_date else ""
+
+                # Apply date cutoff: skip articles older than the window.
+                # RSS feeds are newest-first; once we hit an old article we can stop
+                # fetching further pages too.
+                if cutoff_date and pub_date_str:
+                    article_date = _parse_pub_date(pub_date_str)
+                    if article_date is not None and article_date < cutoff_date:
+                        # This article is outside the window. Since feeds are sorted
+                        # newest-first, everything that follows is also older — stop.
+                        logger.debug(
+                            f"{source_name}: article '{pub_date_str}' is before cutoff, "
+                            f"stopping pagination."
+                        )
+                        current_url = None  # signal to exit outer loop
+                        break
+
+                page_had_fresh_items = True
+
+                # Skip already-seen URLs unless explicitly requested
+                if not include_seen and url in self._seen_urls:
+                    continue
+
+                title = item.title.content if item.title else ""
+
+                # Cross-source title dedup
+                if self._dedup_titles and title:
+                    title_key = self._normalize_title(title)
+                    if title_key and title_key in self._seen_title_keys:
+                        logger.debug(f"Title dedup: skipping '{title[:60]}' from {source_name}")
+                        continue
+                    if title_key:
+                        self._seen_title_keys.add(title_key)
+
+                description = item.description.content if item.description else ""
+                guid = item.guid.content if hasattr(item, "guid") and item.guid else ""
+
+                article = Article(
+                    url=url,
+                    title=title,
+                    source=source_name,
+                    description=description,
+                    pub_date=pub_date_str,
+                    guid=guid,
+                )
+                all_articles.append(article)
+                self._seen_urls.add(url)
+
+                if max_per_feed and len(all_articles) >= max_per_feed:
+                    current_url = None  # signal to exit outer loop
+                    break
+
+            # Only follow the next-page link if:
+            # - we haven't been told to stop (current_url still set)
+            # - the page actually contained fresh items (avoid looping on stale feeds)
+            if current_url is not None:
+                next_url = _extract_next_page_url(response.text)
+                if next_url and next_url != current_url and page_had_fresh_items:
+                    current_url = next_url
+                else:
+                    break  # no next page or no fresh items — done
+
+        if pages_fetched > 1:
+            logger.info(f"Fetched {len(all_articles)} articles from {source_name} ({pages_fetched} pages)")
+        else:
+            logger.info(f"Fetched {len(all_articles)} articles from {source_name}")
+        return all_articles
+
+    def fetch_all(
+        self,
+        *,
+        include_seen: bool = False,
+        max_per_feed: int = 0,
+        days: int = 28,
+    ) -> list[Article]:
         """
         Fetch articles from all registered RSS feeds.
         Returns Article objects with metadata only (no full text yet).
 
         Args:
             max_per_feed: Max articles per feed (0 = unlimited)
+            days: Only return articles published within the last N days (0 = no filter).
+                  Defaults to 28 days. Also controls how far back pagination will go.
         """
+        cutoff_date: Optional[datetime] = None
+        if days > 0:
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+
         all_articles = []
         for source_name, rss_url in self._feeds:
-            articles = self.fetch_feed(source_name, rss_url, include_seen=include_seen, max_per_feed=max_per_feed)
+            articles = self.fetch_feed(
+                source_name,
+                rss_url,
+                include_seen=include_seen,
+                max_per_feed=max_per_feed,
+                cutoff_date=cutoff_date,
+            )
             all_articles.extend(articles)
 
         logger.info(f"Fetched {len(all_articles)} total articles from {len(self._feeds)} feeds")
@@ -307,6 +420,7 @@ class NewsRSSScraper:
         *,
         include_seen: bool = False,
         max_workers: int = 5,
+        days: int = 28,
     ) -> list[Article]:
         """
         Fetch all RSS feeds and extract full content for every article.
@@ -314,8 +428,9 @@ class NewsRSSScraper:
         Args:
             include_seen: If True, re-process previously seen URLs
             max_workers: Number of parallel download threads for content extraction
+            days: Only include articles published within the last N days (0 = no filter)
         """
-        articles = self.fetch_all(include_seen=include_seen)
+        articles = self.fetch_all(include_seen=include_seen, days=days)
         if articles:
             self.extract_all_content(articles, max_workers=max_workers)
         return articles
