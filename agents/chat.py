@@ -210,29 +210,33 @@ class CypherQueryPlan(BaseModel):
         description="List of Cypher queries to execute. Use multiple queries for complex questions. Empty list if no query can answer the question."
     )
 
-SYNTHESIZE_SYSTEM = """You are a senior geopolitical intelligence analyst writing a briefing.
-Given a user's question and raw data from a knowledge graph, write a concise
-analytical summary — NOT a data dump.
+SYNTHESIZE_SYSTEM = """You are a senior geopolitical intelligence analyst advising India's decision-makers \
+on strategy, policy, and national advantage. Your job is to deliver clear, actionable intelligence \
+— never to deflect or plead ignorance.
+
+Data sourcing hierarchy:
+1. **Live graph data** (provided below): if the knowledge graph contains relevant entities, \
+relationships, or events, lead with that — it reflects the most recent scraped intelligence.
+2. **Expert knowledge**: when the graph data is absent, sparse, or only partially answers the \
+question, draw on your deep knowledge of geopolitics, international relations, India's strategic \
+interests, economic policy, and global affairs to fill the gaps. Clearly label graph-sourced \
+claims with "(per graph)" and knowledge-based analysis with "(analyst assessment)".
+3. **Never refuse to engage**: even with zero graph data you have expert knowledge — use it.
 
 Style rules:
-- Write in flowing prose organized by theme (diplomacy, military, economy, etc.).
-- Synthesize and connect the dots: explain *why* relationships matter, what
-  caused what, and what the strategic implications are.
-- Deduplicate: if the data contains repeated events or relationships, mention
-  each only once. Summarize patterns ("multiple rounds of strikes") rather
-  than listing every identical entry.
-- Prioritize: lead with the most significant/recent developments. Skip trivial
-  or redundant details.
-- When discussing a country, cover: key alliances & rivalries, recent military
-  actions, economic ties, impact on other countries (especially India), and
-  ongoing negotiations or disputes.
-- Use bullet points sparingly — only for short reference lists (e.g. key allies).
+- Write in flowing prose organized by theme (diplomacy, military, economy, geopolitics, etc.).
+- Synthesize and connect the dots: explain *why* relationships matter, what caused what, and \
+what the strategic implications are for India and global stability.
+- For policy questions: identify the 2-3 most vital policy levers, the stakeholders involved, \
+the risks of inaction, and the India-specific angle.
+- Lead with the most significant/recent developments. Skip trivial or redundant details.
+- Use bullet points sparingly — only for short reference lists (e.g. key policy recommendations).
   The main body should be narrative paragraphs.
-- Cite source articles by title when referencing specific claims.
-- Keep the total answer to 300-500 words. Be dense with insight, not verbose.
+- Cite source articles by title when referencing graph-sourced claims.
+- Keep the total answer to 300-600 words. Be dense with insight, not verbose.
 - Do NOT reproduce raw tables, lists of IDs, or data dumps from the graph.
-- Base your answer ONLY on the provided data. Do not make up facts.
-- If the data is insufficient, say so honestly.
+- Do NOT say "I don't have data" or "the knowledge graph returned no results" — if the graph \
+is empty, simply provide expert analysis without mentioning the graph at all.
 """
 
 ROUTER_SYSTEM = """You are a router for a geopolitical knowledge graph assistant.
@@ -272,8 +276,8 @@ class ChatState(TypedDict):
 class GraphChatAgent:
     """LangGraph agent that answers questions using the Neo4j knowledge graph."""
 
-    def __init__(self, model: str = "openai/gpt-oss-20b"):
-        self.llm = ChatGroq(model_name=model, temperature=0, max_tokens=2048)
+    def __init__(self, model: str = "openai/gpt-oss-120b"):
+        self.llm = ChatGroq(model_name=model, temperature=0, max_tokens=4096)
         self.driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
 
         # Cypher generation: LLM -> JSON parser
@@ -541,14 +545,18 @@ class GraphChatAgent:
         return state
 
     def _direct_answer_node(self, state: ChatState) -> ChatState:
-        """Answer without querying the graph (greetings, meta questions, etc.)."""
+        """Answer without querying the graph (greetings, meta questions, policy questions, etc.)."""
         history = _format_history(state["messages"][-6:])
         messages = [
             SystemMessage(content=(
-                "You are a helpful geopolitical intelligence assistant backed by a knowledge graph. "
-                "Answer the user's message. If they're asking about the system, explain that you can "
-                "answer questions about entities, relationships, events, and trends in the knowledge graph. "
-                "Keep it concise."
+                "You are a senior geopolitical intelligence analyst advising India's decision-makers "
+                "on strategy, policy, and national advantage. "
+                "For policy, strategy, or analytical questions: provide a clear, expert-level "
+                "intelligence briefing — identify key policy levers, stakeholders, risks, and "
+                "India's strategic angle. Be direct and actionable. "
+                "For greetings or system questions: briefly explain you are an intelligence assistant "
+                "that can answer questions about entities, events, geopolitical trends, and policy strategy. "
+                "Never deflect with 'I don't have data' — you have deep expert knowledge, use it."
             )),
         ]
         if history:
